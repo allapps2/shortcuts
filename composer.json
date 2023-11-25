@@ -1,0 +1,7 @@
+{
+  "name": "allapps2/shortcuts",
+  "description": "Console shortcuts for sets of commands",
+  "require": {
+    "php": ">=8.2"
+  }
+}
