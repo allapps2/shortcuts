@@ -5,6 +5,6 @@ namespace Shortcuts;
 class InputDTO
 {
     public IConfig $config;
-    public string $shortcut;
+    public ?string $shortcut = null;
     public array $arguments;
 }

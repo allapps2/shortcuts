@@ -6,20 +6,34 @@ use Shortcuts\ShortcutDTO\ShortcutsCollection;
 
 class App
 {
+    const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
+    const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
+
     function handle(array $argv): void
     {
+        define('ROOT_DIR', dirname(__DIR__));
+
         $dtoInput = $this->parseInput($argv);
 
-        if (!$dtoInput || !isset($dtoInput->shortcut)) {
+        if (!$dtoInput || is_null($dtoInput->shortcut)) {
             $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
             if (!$dtoInput) {
                 return;
             }
         }
 
+        switch ($dtoInput->shortcut) {
+            case self::APP_SHORTCUT_PHAR:
+                (new PharCompiler($this))->compile();
+                return;
+            case self::APP_SHORTCUT_SETUP:
+                $this->setupGlobal();
+                return;
+        }
+
         $shortcuts = $this->buildShortcutsCollection($dtoInput);
 
-        if (!isset($dtoInput->shortcut)) {
+        if (!$dtoInput->shortcut) {
             $this->echoShortcuts($shortcuts);
             return;
         }
@@ -32,6 +46,23 @@ class App
         }
 
         $this->handleShortcut($dtoShortcut, $shortcuts->getEnv());
+    }
+
+    private function setupGlobal(): void
+    {
+        $dstFile = '/usr/local/bin/short';
+        $fileContent = sprintf(
+            "#!%s\n<?php\nrequire('%s');\n",
+            PHP_BINARY,
+            PharCompiler::getPharFilePath()
+        );
+        $writtenBytes = @file_put_contents($dstFile, $fileContent);
+        if ($writtenBytes !== strlen($fileContent)) {
+            $this->echoLn('Error writing to ' . $dstFile);
+        } else {
+            chmod($dstFile, fileperms($dstFile) | 0111); // +x
+            $this->echoLn('Now you can use "short" in directory with shortcuts.php');
+        }
     }
 
     private function echoShortcuts(ShortcutsCollection $shortcuts): void
@@ -79,24 +110,29 @@ class App
     {
         $dto = new InputDTO();
 
+        if ($shortcut = trim($argv[1] ?? '')) {
+            $dto->shortcut = $shortcut;
+            $dto->arguments = array_slice($argv, 2);
+
+            if (in_array($shortcut, [self::APP_SHORTCUT_PHAR, self::APP_SHORTCUT_SETUP])) {
+                return $dto;
+            }
+        }
+
         $configFile = getcwd() . '/' . IConfig::CONFIG_FILE;
-        if (!is_file($configFile)) {
+        if (is_file($configFile)) {
+            $config = @require($configFile);
+            if (!$config instanceof IConfig) {
+                $this->echoLn(
+                    'must return instance of ' . IConfig::class . ': ' . $configFile
+                );
+                return null;
+            }
+            $dto->config = $config;
+        } else {
             $this->echoLn('not found ' . $configFile);
             return null;
         }
-
-        $config = @require($configFile);
-        if (!$config instanceof IConfig) {
-            $this->echoLn('must return instance of ' . IConfig::class . ': ' . $configFile);
-            return null;
-        }
-        $dto->config = $config;
-
-        if ($shortcut = trim($argv[1] ?? '')) {
-            $dto->shortcut = $shortcut;
-        }
-
-        $dto->arguments = array_slice($argv, 2);
 
         return $dto;
     }
@@ -110,7 +146,7 @@ class App
         }
     }
 
-    private function echoLn(string $msg): void
+    function echoLn(string $msg): void
     {
         echo $msg . "\n";
     }
