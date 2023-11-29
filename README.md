@@ -17,15 +17,13 @@ into the host application brings.
 
 ## usage
 
-in folder with shortcuts.php (that should return object that implements `Shortcuts\IConfig`):
+in folder with shortcuts.php:
 
 `short [shortcut]`
 
 ### example of shortcuts.php:
 
 ```php
-<?php
-
 use Shortcuts\CommandDTO;
 use Shortcuts\CommandDTO\CommandsCollection;
 use Shortcuts\IConfig;
