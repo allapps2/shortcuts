@@ -66,8 +66,7 @@ return new class implements IConfig {
         return require __DIR__ . '/shortcuts.local.php';
     }
 
-    function onBuildComplete(ShortcutsCollection $shortcuts): void 
-    {
+    function onBuildComplete(ShortcutsCollection $shortcuts): void {
         $env = $shortcuts->getEnv();
         if ($env->ENV_VARIABLE1 === 'value') {
             $env->ENV_VARIABLE2 = 'new value';

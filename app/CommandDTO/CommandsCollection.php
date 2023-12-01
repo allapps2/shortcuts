@@ -18,6 +18,13 @@ class CommandsCollection implements IteratorAggregate
         return $this;
     }
 
+    function removeAll(): static
+    {
+        $this->items = [];
+
+        return $this;
+    }
+
     /**
      * @return CommandDTO[]
      */
