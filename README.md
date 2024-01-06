@@ -52,9 +52,6 @@ return new class implements IConfig {
                             ->add(new CommandWithoutArgs('long command1'))
                             ->add(new CommandWithoutArgs('long command2')),
                         description: 'alias description'
-                    ))
-                    ->add(new ShortcutDTO(
-                        'alias2', 'long command'
                     ));
             }
 
