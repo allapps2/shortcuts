@@ -17,7 +17,7 @@ class PharCompiler
 
     function compile(): void
     {
-        $pharFile = self::getPharFilePath();
+        $pharFile = Phar::running() ?: (ROOT_DIR . '/short.phar');
         if (file_exists($pharFile)) {
             unlink($pharFile);
         }
@@ -48,10 +48,5 @@ class PharCompiler
 
         $this->app->echoLn('included files:');
         $this->app->echoLn('  ' . implode("\n  ", array_keys($files)));
-    }
-
-    static function getPharFilePath(): string
-    {
-        return Phar::running() ?: (ROOT_DIR . '/short.phar');
     }
 }

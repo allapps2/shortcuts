@@ -6,6 +6,6 @@ use Shortcuts\ShortcutDTO\ShortcutsCollection;
 
 interface IDefaultBuilder
 {
-    function getShortcuts(array $commandLineArguments): ShortcutsCollection;
+    function getShortcuts(): ShortcutsCollection;
     function getEnv(): ?IEnvDTO;
 }

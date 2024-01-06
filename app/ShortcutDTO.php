@@ -2,7 +2,7 @@
 
 namespace Shortcuts;
 
-use Shortcuts\CommandDTO\CommandsCollection;
+use Shortcuts\ICommand\CommandsCollection;
 
 readonly class ShortcutDTO
 {

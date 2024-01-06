@@ -13,6 +13,8 @@ into the host application brings.
 
 ## global install
 
+to make `short` alias available everywhere:
+
 `sudo php short.phar setup-shortcuts-global`
 
 ## usage
@@ -24,8 +26,8 @@ in folder with shortcuts.php:
 ### example of shortcuts.php:
 
 ```php
-use Shortcuts\CommandDTO;
-use Shortcuts\CommandDTO\CommandsCollection;
+use Shortcuts\ICommand\CommandsCollection;
+use Shortcuts\ICommand\CommandWithoutArgs;
 use Shortcuts\IConfig;
 use Shortcuts\IDefaultBuilder;
 use Shortcuts\IEnvDTO;
@@ -47,8 +49,8 @@ return new class implements IConfig {
                     ->add(new ShortcutDTO(
                         'alias1',
                         (new CommandsCollection)
-                            ->add(new CommandDTO('long command1'))
-                            ->add(new CommandDTO('long command2')),
+                            ->add(new CommandWithoutArgs('long command1'))
+                            ->add(new CommandWithoutArgs('long command2')),
                         description: 'alias description'
                     ))
                     ->add(new ShortcutDTO(
@@ -75,6 +77,20 @@ return new class implements IConfig {
 };
 
 ```
+
+To simplify `shortcuts.php` editing you can put `short.phar` into your project 
+(usually into the folder with `shortcuts.php`) and your IDE will be able to provide code 
+completion (at least PhpStorm can do it).
+
+# For contributors
+
+clone the repository and create `short` alias that points to index.php instead of 
+short.phar:
+
+`sudo php </path/to/clone>/app/index.php setup-shortcuts-global`
+
+This way `short` will run your development version instead of the distributed one to
+let you test your changes.
 
 ## recompile short.phar
 

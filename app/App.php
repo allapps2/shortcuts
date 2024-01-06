@@ -2,6 +2,8 @@
 
 namespace Shortcuts;
 
+use Phar;
+use Shortcuts\ICommand\CommandWithArgs;
 use Shortcuts\ShortcutDTO\ShortcutsCollection;
 
 class App
@@ -45,17 +47,18 @@ class App
             return;
         }
 
-        $this->handleShortcut($dtoShortcut, $shortcuts->getEnv());
+        try {
+            $this->handleShortcut($dtoShortcut, $shortcuts->getEnv(), $dtoInput);
+        } catch(UserFriendlyException $e) {
+            $this->echoLn($e->getMessage());
+        }
     }
 
     private function setupGlobal(): void
     {
+        $executable = Phar::running() ?: $_SERVER['SCRIPT_NAME'];
         $dstFile = '/usr/local/bin/short';
-        $fileContent = sprintf(
-            "#!%s\n<?php\nrequire('%s');\n",
-            PHP_BINARY,
-            PharCompiler::getPharFilePath()
-        );
+        $fileContent = sprintf("#!%s\n<?php\nrequire('%s');\n", PHP_BINARY, $executable);
         $writtenBytes = @file_put_contents($dstFile, $fileContent);
         if ($writtenBytes !== strlen($fileContent)) {
             $this->echoLn('Error writing to ' . $dstFile);
@@ -69,16 +72,57 @@ class App
     {
         $this->echoLn('available shortcuts:');
         $prefix = '  ';
-        $len = $shortcuts->getShortcutMaxLen() + 1;
+        $descSeparator = '- ';
+        $argsSeparator = str_repeat(' ', strlen($descSeparator));
+
+        $argMaxLen = 0;
+        foreach ($shortcuts as $dtoShortcut) {
+            foreach ($dtoShortcut->commands->getArguments() as $dtoArg) {
+                $argMaxLen = max($argMaxLen, strlen($dtoArg->name));
+            }
+        }
+        $shortcutLen = max(
+            $shortcuts->getShortcutMaxLen(),
+            $argMaxLen + strlen($prefix) + strlen(CommandWithArgs::ARG_PREFIX)
+        ) + 1;
+        $argLen = $shortcutLen - strlen($prefix);
+
         foreach ($shortcuts as $dtoShortcut) {
             if ($dtoShortcut->description) {
                 $this->echoLn(
                     $prefix .
-                    str_pad($dtoShortcut->shortcut, $len) .
-                    '- ' . $dtoShortcut->description
+                    str_pad($dtoShortcut->shortcut, $shortcutLen) .
+                    $descSeparator . $dtoShortcut->description
                 );
             } else {
                 $this->echoLn($prefix . $dtoShortcut->shortcut);
+            }
+
+            foreach ($dtoShortcut->commands->getArguments() as $dtoArg) {
+                $arg = $prefix . $prefix .
+                    str_pad(CommandWithArgs::ARG_PREFIX . $dtoArg->name, $argLen);
+                switch ($dtoArg->type) {
+                    case 'bool':
+                        $arg .= $argsSeparator . 'optional flag';
+                        break;
+                    case 'string':
+                        if ($dtoArg->hasDefaultValue()) {
+                            $arg .= $argsSeparator . 'optional';
+                            if (!empty($dtoArg->defaultValue)) {
+                                $arg .= ', default: ' . $dtoArg->defaultValue;
+                            }
+                        }
+                        break;
+                    case 'array':
+                        $arg .= $argsSeparator . 'multiple values';
+                        break;
+                    default:
+                        throw new \Exception(
+                            "Unsupported type '{$dtoArg->type}', fix filling of " .
+                            get_class($dtoArg)
+                        );
+                }
+                $this->echoLn($arg);
             }
         }
 
@@ -93,7 +137,7 @@ class App
     private function buildShortcutsCollection(InputDTO $dtoInput): ShortcutsCollection
     {
         $defaultBuilder = $dtoInput->config->getDefaultShortcutsBuilder();
-        $shortcuts = $defaultBuilder->getShortcuts($dtoInput->arguments);
+        $shortcuts = $defaultBuilder->getShortcuts();
         $dtoEnv = $defaultBuilder->getEnv() ?: new EnvEmptyDTO();
         if ($localBuilder = $dtoInput->config->getLocalShortcutsBuilder()) {
             $localBuilder->updateShortcuts($shortcuts);
@@ -108,15 +152,14 @@ class App
 
     private function parseInput(array $argv): ?InputDTO
     {
-        $dto = new InputDTO();
-
         if ($shortcut = trim($argv[1] ?? '')) {
-            $dto->shortcut = $shortcut;
-            $dto->arguments = array_slice($argv, 2);
+            $dto = new InputDTO($shortcut, array_slice($argv, 2));
 
             if (in_array($shortcut, [self::APP_SHORTCUT_PHAR, self::APP_SHORTCUT_SETUP])) {
                 return $dto;
             }
+        } else {
+            $dto = new InputDTO();
         }
 
         $configFile = getcwd() . '/' . IConfig::CONFIG_FILE;
@@ -128,7 +171,7 @@ class App
                 );
                 return null;
             }
-            $dto->config = $config;
+            $dto->setConfig($config);
         } else {
             $this->echoLn('not found ' . $configFile);
             return null;
@@ -137,10 +180,14 @@ class App
         return $dto;
     }
 
-    private function handleShortcut(ShortcutDTO $dtoShortcut, IEnvDTO $dtoEnv): void
+    private function handleShortcut(
+        ShortcutDTO $dtoShortcut, IEnvDTO $dtoEnv, InputDTO $dtoInput
+    ): void
     {
-        foreach ($dtoShortcut->commands as $dtoCommand) {
-            if (!$this->execCommand($dtoCommand, $dtoEnv)) {
+        $env = $dtoEnv->asArray();
+        $argsEscaped = $dtoInput->parseAndEscapeArguments();
+        foreach ($dtoShortcut->commands as $command) {
+            if (!$this->execCommand($command, $env, $argsEscaped)) {
                 break;
             }
         }
@@ -151,20 +198,17 @@ class App
         echo $msg . "\n";
     }
 
-    private function execCommand(CommandDTO $dtoCommand, IEnvDTO $dtoEnv): bool
+    private function execCommand(ICommand $command, array $env, array $argsEscaped): bool
     {
-        if ($dtoCommand->echoCommand) {
-            $this->echoLn($dtoCommand->command);
+        $sCmd = $command->compose($argsEscaped);
+
+        if ($command->isEchoRequired()) {
+            $this->echoLn($sCmd);
         }
 
-        $process = proc_open(
-            $dtoCommand->command,
-            [1 => STDOUT, 2 => STDERR],
-            $pipes,
-            env_vars: $dtoEnv->asArray()
-        );
+        $process = proc_open($sCmd, [1 => STDOUT, 2 => STDERR], $pipes, env_vars: $env);
         if (!is_resource($process)) {
-            $this->echoLn("failed to execute: {$dtoCommand->command}");
+            $this->echoLn("failed to execute: {$sCmd}");
             return false;
         }
         while(proc_get_status($process)['running']) {
