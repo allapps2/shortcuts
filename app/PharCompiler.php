@@ -17,7 +17,7 @@ class PharCompiler
 
     function compile(): void
     {
-        $pharFile = Phar::running() ?: (ROOT_DIR . '/short.phar');
+        $pharFile = Phar::running() ?: (ROOT_DIR . '/bin/short.phar');
         if (file_exists($pharFile)) {
             unlink($pharFile);
         }

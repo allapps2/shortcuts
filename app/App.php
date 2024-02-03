@@ -64,7 +64,7 @@ class App
             $this->echoLn('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            $this->echoLn('Now you can use "short" in directory with shortcuts.php');
+            $this->echoLn('Now you can use "short" in any directory with shortcuts.php');
         }
     }
 

@@ -15,7 +15,7 @@ into the host application brings.
 
 to make `short` alias available everywhere:
 
-`sudo php short.phar setup-shortcuts-global`
+`sudo php ./bin/short.phar setup-shortcuts-global`
 
 ## usage
 
