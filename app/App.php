@@ -43,7 +43,7 @@ class App
         $dtoShortcut = $shortcuts->get($dtoInput->shortcut);
         if (!$dtoShortcut) {
             $this->echoLn("unknown shortcut '{$dtoInput->shortcut}'");
-            $this->echoShortcuts($shortcuts);
+            $this->echoShortcuts($shortcuts, showEnv: false);
             return;
         }
 
@@ -68,7 +68,9 @@ class App
         }
     }
 
-    private function echoShortcuts(ShortcutsCollection $shortcuts): void
+    private function echoShortcuts(
+        ShortcutsCollection $shortcuts, bool $showEnv = true
+    ): void
     {
         $this->echoLn('available shortcuts:');
         $prefix = '  ';
@@ -126,11 +128,13 @@ class App
             }
         }
 
-        $this->echoLn('environment variables:');
-        $env = $shortcuts->getEnv()->asArray();
-        ksort($env);
-        foreach ($env as $name => $value) {
-            $this->echoLn($prefix . "{$name} = {$value}");
+        if ($showEnv) {
+            $this->echoLn('environment variables:');
+            $env = $shortcuts->getEnv()->asArray();
+            ksort($env);
+            foreach ($env as $name => $value) {
+                $this->echoLn($prefix . "{$name} = {$value}");
+            }
         }
     }
 
