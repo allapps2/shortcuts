@@ -10,7 +10,7 @@ readonly class CommandWithAllArgs implements ICommand
 
     function compose(array $argumentsEscaped): string
     {
-        return $this->composer->call($this, implode(' ', $argumentsEscaped));
+        return $this->composer->call($this, implode(' ', array_slice($_SERVER['argv'], 2)));
     }
 
     function isEchoRequired(): bool
