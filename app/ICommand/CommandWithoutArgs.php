@@ -4,7 +4,7 @@ namespace Shortcuts\ICommand;
 
 use Shortcuts\ICommand;
 
-readonly class CommandWithoutArgs implements ICommand
+class CommandWithoutArgs implements ICommand
 {
     function __construct(public string $command, public bool $echoCommand = true) {}
 

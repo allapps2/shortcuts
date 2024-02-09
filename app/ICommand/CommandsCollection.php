@@ -46,4 +46,11 @@ class CommandsCollection implements IteratorAggregate
 
         return $arguments;
     }
+
+    function removeByKey(int $key): static
+    {
+        unset($this->items[$key]);
+
+        return $this;
+    }
 }

@@ -79,7 +79,7 @@ To simplify `shortcuts.php` editing you can put `short.phar` into your project
 (usually into the folder with `shortcuts.php`) and your IDE will be able to provide code 
 completion (at least PhpStorm can do it).
 
-# For contributors
+# for contributors
 
 clone the repository and create `short` alias that points to index.php instead of 
 short.phar:
