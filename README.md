@@ -20,7 +20,7 @@ to make `short` alias available everywhere:
 
 in folder with shortcuts.php:
 
-`short [shortcut]`
+`short [<shortcut> [<arguments>]]`
 
 ### example of shortcuts.php:
 
