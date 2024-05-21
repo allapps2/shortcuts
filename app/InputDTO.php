@@ -6,14 +6,14 @@ use Shortcuts\ICommand\CommandWithArgs;
 
 readonly class InputDTO
 {
-    public IConfig $config;
+    public IBuilder $builder;
 
     function __construct(public ?string $shortcut = null, public array $arguments = [])
     {}
 
-    function setConfig(IConfig $config): void
+    function setBuilder(IBuilder $builder): void
     {
-        $this->config = $config;
+        $this->builder = $builder;
     }
 
     function parseAndEscapeArguments(): array

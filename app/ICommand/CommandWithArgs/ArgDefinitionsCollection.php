@@ -1,10 +1,9 @@
 <?php
 
-namespace Shortcuts\ICommand\ArgDefinitionDTO;
+namespace Shortcuts\ICommand\CommandWithArgs;
 
 use ArrayIterator;
 use IteratorAggregate;
-use Shortcuts\ICommand\ArgDefinitionDTO;
 use Traversable;
 
 class ArgDefinitionsCollection implements IteratorAggregate

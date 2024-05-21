@@ -3,9 +3,8 @@
 Command line tool to call sets of commands using short aliases.
 
 A distinctive feature is that it is configured entirely in **PHP**, which means 
-accessibility of **code-completion**, finding of **usage** (and other features of your 
-IDE), using of your application **constants**, **validation** and actually brings 
-the whole range of PHP possibilities.
+accessibility of **code-completion**, finding of **usage**, using of your application **constants**, **validation** and actually brings 
+the whole range of PHP possibilities and your IDE features.
 
 The disadvantage of this is that the configuration is more verbose compared to YAML and
 other simple formats, but it is negligible compared to the benefits that integration 
@@ -26,53 +25,34 @@ in folder with shortcuts.php:
 ### example of shortcuts.php:
 
 ```php
+use Shortcuts\IBuilder;
 use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\ICommand\CommandWithoutArgs;
-use Shortcuts\IConfig;
-use Shortcuts\IDefaultBuilder;
-use Shortcuts\IEnvDTO;
-use Shortcuts\IEnvDTO\_EnvDTO;
-use Shortcuts\ILocalBuilder;
-use Shortcuts\ShortcutDTO;
-use Shortcuts\ShortcutDTO\ShortcutsCollection;
+use Shortcuts\ShortcutsCollection;
 
-class Env extends _EnvDTO {
+class EnvDTO extends Shortcuts\IEnvDTO\_EnvDTO {
     public string $ENV_VARIABLE1 = 'value1';
     public string $ENV_VARIABLE2 = 'value2';
 }
 
-return new class implements IConfig {
-    function getDefaultShortcutsBuilder(): IDefaultBuilder {
-        return new class implements IDefaultBuilder {
-            function getShortcuts(array $commandLineArguments): ShortcutsCollection {
-                return (new ShortcutsCollection)
-                    ->add(new ShortcutDTO(
-                        'alias1',
-                        (new CommandsCollection)
-                            ->add(new CommandWithoutArgs('long command1'))
-                            ->add(new CommandWithoutArgs('long command2')),
-                        description: 'alias description'
-                    ));
-            }
+return new class implements IBuilder {
+    function build(): ShortcutsCollection {
+        return new class extends ShortcutsCollection {
 
-            function getEnv(): ?IEnvDTO {
-                return new Env();
+            function alias1(): CommandsCollection {
+                return (new CommandsCollection)->add('long command1');
+            }
+        
+            function alias2(): CommandsCollection {
+                return (new CommandsCollection)
+                    ->addEnv(new EnvDTO())
+                    ->add('long command2')
+                    ->add('long command3')
+                    ->setDescription('alias description');
+                };
             }
         };
     }
-
-    function getLocalShortcutsBuilder(): ?ILocalBuilder {
-        return require __DIR__ . '/shortcuts.local.php';
-    }
-
-    function onBuildComplete(ShortcutsCollection $shortcuts): void {
-        $env = $shortcuts->getEnv();
-        if ($env->ENV_VARIABLE1 === 'value') {
-            $env->ENV_VARIABLE2 = 'new value';
-        }
-    }
 };
-
 ```
 
 To simplify `shortcuts.php` editing you can put `short.phar` into your project 

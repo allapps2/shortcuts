@@ -3,7 +3,8 @@
 namespace Shortcuts\ICommand;
 
 use Shortcuts\ICommand;
-use Shortcuts\ICommand\ArgDefinitionDTO\ArgDefinitionsCollection;
+use Shortcuts\ICommand\CommandWithArgs\ArgDefinitionDTO;
+use Shortcuts\ICommand\CommandWithArgs\ArgDefinitionsCollection;
 use Shortcuts\UserFriendlyException;
 
 readonly class CommandWithArgs implements ICommand
@@ -16,7 +17,10 @@ readonly class CommandWithArgs implements ICommand
     {
         $args = $this->_populateArgsWithValues($argumentsEscaped);
 
-        return $this->composer->call($this, ...$args);
+        // cannot use $this->composer->call($this) to avoid $this change, because
+        // it could be set via bindTo()
+        $func = $this->composer;
+        return $func(...$args);
     }
 
     function isEchoRequired(): bool

@@ -1,6 +1,6 @@
 <?php
 
-namespace Shortcuts\ICommand;
+namespace Shortcuts\ICommand\CommandWithArgs;
 
 class ArgDefinitionDTO
 {

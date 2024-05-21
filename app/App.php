@@ -3,8 +3,8 @@
 namespace Shortcuts;
 
 use Phar;
+use Shortcuts\ICommand\CommandsCollection;
 use Shortcuts\ICommand\CommandWithArgs;
-use Shortcuts\ShortcutDTO\ShortcutsCollection;
 
 class App
 {
@@ -33,22 +33,22 @@ class App
                 return;
         }
 
-        $shortcuts = $this->buildShortcutsCollection($dtoInput);
+        $shortcuts = $dtoInput->builder->build();
 
         if (!$dtoInput->shortcut) {
             $this->echoShortcuts($shortcuts);
             return;
         }
 
-        $dtoShortcut = $shortcuts->get($dtoInput->shortcut);
-        if (!$dtoShortcut) {
+        $commands = $shortcuts->getIterator()[$dtoInput->shortcut] ?? null;
+        if (!$commands) {
             $this->echoLn("unknown shortcut '{$dtoInput->shortcut}'");
             $this->echoShortcuts($shortcuts, showEnv: false);
             return;
         }
 
         try {
-            $this->handleShortcut($dtoShortcut, $shortcuts->getEnv(), $dtoInput);
+            $this->handleShortcut($commands, $dtoInput);
         } catch(UserFriendlyException $e) {
             $this->echoLn($e->getMessage());
         }
@@ -72,35 +72,78 @@ class App
         ShortcutsCollection $shortcuts, bool $showEnv = true
     ): void
     {
-        $this->echoLn('available shortcuts:');
         $prefix = '  ';
         $descSeparator = '- ';
         $argsSeparator = str_repeat(' ', strlen($descSeparator));
 
+        $shortcutMaxLen = 0;
         $argMaxLen = 0;
-        foreach ($shortcuts as $dtoShortcut) {
-            foreach ($dtoShortcut->commands->getArguments() as $dtoArg) {
+        foreach ($shortcuts as $shortcut => $commands) {
+            $shortcutMaxLen = max($shortcutMaxLen, strlen($shortcut));
+            foreach ($commands->getArguments() as $dtoArg) {
                 $argMaxLen = max($argMaxLen, strlen($dtoArg->name));
             }
         }
         $shortcutLen = max(
-            $shortcuts->getShortcutMaxLen(),
+            $shortcutMaxLen,
             $argMaxLen + strlen($prefix) + strlen(CommandWithArgs::ARG_PREFIX)
         ) + 1;
         $argLen = $shortcutLen - strlen($prefix);
 
-        foreach ($shortcuts as $dtoShortcut) {
-            if ($dtoShortcut->description) {
-                $this->echoLn(
-                    $prefix .
-                    str_pad($dtoShortcut->shortcut, $shortcutLen) .
-                    $descSeparator . $dtoShortcut->description
-                );
-            } else {
-                $this->echoLn($prefix . $dtoShortcut->shortcut);
+        // environment variables
+        $envNonDefault = [];
+        if ($showEnv) {
+            $envAll = [];
+            foreach ($shortcuts as $shortcut => $commands) {
+                foreach ($commands->getEnv() as $var => $value) {
+                    if (!isset($envAll[$var][$value])) {
+                        $envAll[$var][$value] = [];
+                    }
+                    $envAll[$var][$value][] = $shortcut;
+                }
             }
 
-            foreach ($dtoShortcut->commands->getArguments() as $dtoArg) {
+            if (!empty($envAll)) {
+                $envDefault = [];
+                $shortcutsCount = count($shortcuts->getIterator());
+                foreach ($envAll as $var => $values) {
+                    foreach ($values as $value => $shortcutNames) {
+                        if (count($shortcutNames) === $shortcutsCount) {
+                            $envDefault[$var] = $value;
+                        } else {
+                            foreach ($shortcutNames as $shortcutName) {
+                                if (!isset($envNonDefault[$shortcutName])) {
+                                    $envNonDefault[$shortcutName] = [];
+                                }
+                                $envNonDefault[$shortcutName][$var] = $value;
+                            }
+                        }
+                    }
+                }
+                if ($envDefault) {
+                    $this->echoLn('environment variables:');
+                    ksort($envDefault);
+                    foreach ($envDefault as $var => $value) {
+                        $this->echoLn($prefix . "{$var}={$value}");
+                    }
+                }
+            }
+        }
+
+        // shortcuts
+        $this->echoLn('available shortcuts:');
+        foreach ($shortcuts as $shortcut => $commands) {
+            if ($commands->getDescription()) {
+                $this->echoLn(
+                    $prefix .
+                    str_pad($shortcut, $shortcutLen) .
+                    $descSeparator . $commands->getDescription()
+                );
+            } else {
+                $this->echoLn($prefix . $shortcut);
+            }
+
+            foreach ($commands->getArguments() as $dtoArg) {
                 $arg = $prefix . $prefix .
                     str_pad(CommandWithArgs::ARG_PREFIX . $dtoArg->name, $argLen);
                 switch ($dtoArg->type) {
@@ -126,32 +169,16 @@ class App
                 }
                 $this->echoLn($arg);
             }
-        }
 
-        if ($showEnv) {
-            $this->echoLn('environment variables:');
-            $env = $shortcuts->getEnv()->asArray();
-            ksort($env);
-            foreach ($env as $name => $value) {
-                $this->echoLn($prefix . "{$name} = {$value}");
+            if (isset($envNonDefault[$shortcut])) {
+                $this->echoLn($prefix . $prefix . 'environment variables:');
+                $vars = $envNonDefault[$shortcut];
+                ksort($vars);
+                foreach ($vars as $var => $value) {
+                    $this->echoLn($prefix . $prefix . $prefix . "{$var}={$value}");
+                }
             }
         }
-    }
-
-    private function buildShortcutsCollection(InputDTO $dtoInput): ShortcutsCollection
-    {
-        $defaultBuilder = $dtoInput->config->getDefaultShortcutsBuilder();
-        $shortcuts = $defaultBuilder->getShortcuts();
-        $dtoEnv = $defaultBuilder->getEnv() ?: new EnvEmptyDTO();
-        if ($localBuilder = $dtoInput->config->getLocalShortcutsBuilder()) {
-            $localBuilder->updateShortcuts($shortcuts);
-            $dtoEnv = $localBuilder->updateEnv($dtoEnv);
-        }
-        $shortcuts->setEnv($dtoEnv);
-
-        $dtoInput->config->onBuildComplete($shortcuts);
-
-        return $shortcuts;
     }
 
     private function parseInput(array $argv): ?InputDTO
@@ -166,16 +193,16 @@ class App
             $dto = new InputDTO();
         }
 
-        $configFile = getcwd() . '/' . IConfig::CONFIG_FILE;
+        $configFile = getcwd() . '/' . IBuilder::CONFIG_FILE;
         if (is_file($configFile)) {
-            $config = @require($configFile);
-            if (!$config instanceof IConfig) {
+            $builder = @require($configFile);
+            if (!$builder instanceof IBuilder) {
                 $this->echoLn(
-                    'must return instance of ' . IConfig::class . ': ' . $configFile
+                    'must return instance of ' . IBuilder::class . ': ' . $configFile
                 );
                 return null;
             }
-            $dto->setConfig($config);
+            $dto->setBuilder($builder);
         } else {
             $this->echoLn('not found ' . $configFile);
             return null;
@@ -184,13 +211,11 @@ class App
         return $dto;
     }
 
-    private function handleShortcut(
-        ShortcutDTO $dtoShortcut, IEnvDTO $dtoEnv, InputDTO $dtoInput
-    ): void
+    private function handleShortcut(CommandsCollection $commands, InputDTO $dtoInput): void
     {
-        $env = $dtoEnv->asArray();
+        $env = $commands->getEnv();
         $argsEscaped = $dtoInput->parseAndEscapeArguments();
-        foreach ($dtoShortcut->commands as $command) {
+        foreach ($commands as $command) {
             if (!$this->execCommand($command, $env, $argsEscaped)) {
                 break;
             }

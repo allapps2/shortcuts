@@ -5,16 +5,21 @@ namespace Shortcuts\ICommand;
 use ArrayIterator;
 use IteratorAggregate;
 use Shortcuts\ICommand;
-use Shortcuts\ICommand\ArgDefinitionDTO\ArgDefinitionsCollection;
+use Shortcuts\ICommand\CommandWithArgs\ArgDefinitionsCollection;
+use Shortcuts\IEnvDTO;
 use Traversable;
 
 class CommandsCollection implements IteratorAggregate
 {
     private array $items = [];
+    private string $description = '';
 
-    function add(ICommand $command): static
+    /** @var IEnvDTO[] */
+    private array $envs = [];
+
+    function add(ICommand|string $command): static
     {
-        $this->items[] = $command;
+        $this->items[] = is_string($command) ? new CommandWithoutArgs($command) : $command;
 
         return $this;
     }
@@ -52,5 +57,34 @@ class CommandsCollection implements IteratorAggregate
         unset($this->items[$key]);
 
         return $this;
+    }
+
+    function setDescription(string $description): static
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    function getDescription(): string
+    {
+        return $this->description;
+    }
+
+    function addEnv(IEnvDTO $dto): static
+    {
+        $this->envs[] = $dto;
+
+        return $this;
+    }
+
+    function getEnv(): array
+    {
+        $env = [];
+        foreach ($this->envs as $dto) {
+            $env = array_merge($env, $dto->asArray());
+        }
+
+        return $env;
     }
 }
