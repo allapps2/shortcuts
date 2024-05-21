@@ -15,56 +15,66 @@ class App
     {
         define('ROOT_DIR', dirname(__DIR__));
 
-        $dtoInput = $this->parseInput($argv);
+        try {
+            $dtoInput = $this->parseInput($argv);
 
-        if (!$dtoInput || is_null($dtoInput->shortcut)) {
-            $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
-            if (!$dtoInput) {
+            if (!$dtoInput || is_null($dtoInput->shortcut)) {
+                $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
+                if (!$dtoInput) {
+                    return;
+                }
+            }
+
+            switch ($dtoInput->shortcut) {
+                case self::APP_SHORTCUT_PHAR:
+                    (new PharCompiler($this))->compile();
+                    return;
+                case self::APP_SHORTCUT_SETUP:
+                    $this->setupGlobal($dtoInput->arguments[0] ?? '');
+                    return;
+            }
+
+            $shortcuts = $dtoInput->builder->build();
+
+            if (!$dtoInput->shortcut) {
+                $this->echoShortcuts($shortcuts);
                 return;
             }
-        }
 
-        switch ($dtoInput->shortcut) {
-            case self::APP_SHORTCUT_PHAR:
-                (new PharCompiler($this))->compile();
+            $commands = $shortcuts->getIterator()[$dtoInput->shortcut] ?? null;
+            if (!$commands) {
+                $this->echoLn("unknown shortcut '{$dtoInput->shortcut}'");
+                $this->echoShortcuts($shortcuts, showEnv: false);
                 return;
-            case self::APP_SHORTCUT_SETUP:
-                $this->setupGlobal();
-                return;
-        }
+            }
 
-        $shortcuts = $dtoInput->builder->build();
-
-        if (!$dtoInput->shortcut) {
-            $this->echoShortcuts($shortcuts);
-            return;
-        }
-
-        $commands = $shortcuts->getIterator()[$dtoInput->shortcut] ?? null;
-        if (!$commands) {
-            $this->echoLn("unknown shortcut '{$dtoInput->shortcut}'");
-            $this->echoShortcuts($shortcuts, showEnv: false);
-            return;
-        }
-
-        try {
             $this->handleShortcut($commands, $dtoInput);
         } catch(UserFriendlyException $e) {
             $this->echoLn($e->getMessage());
         }
     }
 
-    private function setupGlobal(): void
+    private function setupGlobal(string $alias): void
     {
+        if ($_alias = trim($alias)) {
+            if (preg_match('/[^a-z0-9]/', $_alias)) {
+                throw new UserFriendlyException(
+                    'alias should be alphanumeric (a-z, 0-9), wrong value: ' . $_alias
+                );
+            }
+        } else {
+            $_alias = 'doo';
+        }
+
         $executable = Phar::running() ?: $_SERVER['SCRIPT_NAME'];
-        $dstFile = '/usr/local/bin/short';
+        $dstFile = '/usr/local/bin/' . $_alias;
         $fileContent = sprintf("#!%s\n<?php\nrequire('%s');\n", PHP_BINARY, $executable);
         $writtenBytes = @file_put_contents($dstFile, $fileContent);
         if ($writtenBytes !== strlen($fileContent)) {
             $this->echoLn('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            $this->echoLn('Now you can use "short" in any directory with shortcuts.php');
+            $this->echoLn("Now you can use '{$_alias}' in any directory with shortcuts.php");
         }
     }
 
@@ -91,6 +101,7 @@ class App
         $argLen = $shortcutLen - strlen($prefix);
 
         // environment variables
+        $envDefault = [];
         $envNonDefault = [];
         if ($showEnv) {
             $envAll = [];
@@ -104,7 +115,6 @@ class App
             }
 
             if (!empty($envAll)) {
-                $envDefault = [];
                 $shortcutsCount = count($shortcuts->getIterator());
                 foreach ($envAll as $var => $values) {
                     foreach ($values as $value => $shortcutNames) {
@@ -118,13 +128,6 @@ class App
                                 $envNonDefault[$shortcutName][$var] = $value;
                             }
                         }
-                    }
-                }
-                if ($envDefault) {
-                    $this->echoLn('environment variables:');
-                    ksort($envDefault);
-                    foreach ($envDefault as $var => $value) {
-                        $this->echoLn($prefix . "{$var}={$value}");
                     }
                 }
             }
@@ -179,12 +182,21 @@ class App
                 }
             }
         }
+
+        // default environment variables
+        if ($envDefault) {
+            $this->echoLn('environment variables:');
+            ksort($envDefault);
+            foreach ($envDefault as $var => $value) {
+                $this->echoLn($prefix . "{$var}={$value}");
+            }
+        }
     }
 
     private function parseInput(array $argv): ?InputDTO
     {
         if ($shortcut = trim($argv[1] ?? '')) {
-            $dto = new InputDTO($shortcut, array_slice($argv, 2));
+            $dto = new InputDTO($shortcut, array_map('trim', array_slice($argv, 2)));
 
             if (in_array($shortcut, [self::APP_SHORTCUT_PHAR, self::APP_SHORTCUT_SETUP])) {
                 return $dto;

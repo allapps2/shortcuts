@@ -12,15 +12,19 @@ into the host application brings.
 
 ## global install
 
-to make `short` alias available everywhere:
+to make `doo` alias available everywhere:
 
-`sudo php ./bin/short.phar setup-shortcuts-global`
+`sudo php ./bin/shortcuts.phar setup-shortcuts-global`
+
+or any custom alias:
+
+`sudo php ./bin/shortcuts.phar setup-shortcuts-global myalias`
 
 ## usage
 
 in folder with shortcuts.php:
 
-`short [<shortcut> [<arguments>]]`
+`doo [<shortcut> [<arguments>]]`
 
 ### example of shortcuts.php:
 
@@ -55,20 +59,20 @@ return new class implements IBuilder {
 };
 ```
 
-To simplify `shortcuts.php` editing you can put `short.phar` into your project 
+To simplify `shortcuts.php` editing you can put `shortcuts.phar` into your project 
 (usually into the folder with `shortcuts.php`) and your IDE will be able to provide code 
 completion (at least PhpStorm can do it).
 
 # for contributors
 
-clone the repository and create `short` alias that points to index.php instead of 
-short.phar:
+clone the repository and create `doo` alias that points to index.php instead of 
+shortcuts.phar:
 
 `sudo php </path/to/clone>/app/index.php setup-shortcuts-global`
 
-This way `short` will run your development version instead of the distributed one to
+This way `doo` will run your development version instead of the distributed one to
 let you test your changes.
 
-## recompile short.phar
+## recompile shortcuts.phar
 
 `./bin/compile.sh`
