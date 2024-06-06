@@ -63,7 +63,7 @@ class App
                 );
             }
         } else {
-            $_alias = 'doo';
+            $_alias = 'st';
         }
 
         $executable = Phar::running() ?: $_SERVER['SCRIPT_NAME'];

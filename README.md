@@ -12,7 +12,7 @@ into the host application brings.
 
 ## global install
 
-to make `doo` alias available everywhere:
+to make `st` alias available everywhere:
 
 `sudo php ./bin/short.phar setup-shortcuts-global`
 
@@ -24,7 +24,7 @@ or any custom alias:
 
 in folder with shortcuts.php:
 
-`doo [<shortcut> [<arguments>]]`
+`st [<shortcut> [<arguments>]]`
 
 ### example of shortcuts.php:
 
@@ -65,12 +65,12 @@ completion (at least PhpStorm can do it).
 
 # for contributors
 
-clone the repository and create `doo` alias that points to index.php instead of 
+clone the repository and create `st` alias that points to index.php instead of 
 short.phar:
 
 `sudo php </path/to/clone>/app/index.php setup-shortcuts-global`
 
-This way `doo` will run your development version instead of the distributed one to
+This way `st` will run your development version instead of the distributed one to
 let you test your changes.
 
 ## recompile short.phar
