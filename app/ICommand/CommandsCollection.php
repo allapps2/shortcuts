@@ -3,6 +3,7 @@
 namespace Shortcuts\ICommand;
 
 use ArrayIterator;
+use Closure;
 use IteratorAggregate;
 use Shortcuts\ICommand;
 use Shortcuts\ICommand\CommandWithArgs\ArgDefinitionsCollection;
@@ -13,6 +14,7 @@ class CommandsCollection implements IteratorAggregate
 {
     private array $items = [];
     private string $description = '';
+    private Closure $onBefore;
 
     /** @var IEnvDTO[] */
     private array $envs = [];
@@ -86,5 +88,17 @@ class CommandsCollection implements IteratorAggregate
         }
 
         return $env;
+    }
+
+    function onBefore(Closure $closure): static
+    {
+        $this->onBefore = $closure;
+
+        return $this;
+    }
+
+    function getOnBefore(): ?Closure
+    {
+        return $this->onBefore ?? null;
     }
 }

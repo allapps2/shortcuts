@@ -48,6 +48,10 @@ class App
                 return;
             }
 
+            if ($onBefore = $commands->getOnBefore()) {
+                $onBefore->call($shortcuts);
+            }
+
             $this->handleShortcut($commands, $dtoInput);
         } catch(UserFriendlyException $e) {
             $this->echoLn($e->getMessage());
