@@ -17,12 +17,12 @@ class App
 
         try {
             $dtoInput = $this->parseInput($argv);
+            if (!$dtoInput) { // error input parsing
+                return;
+            }
 
-            if (!$dtoInput || is_null($dtoInput->shortcut)) {
+            if ($dtoInput && !$dtoInput->shortcut) {
                 $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
-                if (!$dtoInput) {
-                    return;
-                }
             }
 
             switch ($dtoInput->shortcut) {
