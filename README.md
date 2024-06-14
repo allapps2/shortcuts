@@ -28,11 +28,11 @@ and put it into your project (usually the folder where you will create shortcuts
 
 to make `st` alias available everywhere:
 
-`sudo php ./bin/short.phar setup-shortcuts-global`
+`sudo php short.phar setup-shortcuts-global`
 
 or any custom alias:
 
-`sudo php ./bin/short.phar setup-shortcuts-global myalias`
+`sudo php short.phar setup-shortcuts-global myalias`
 
 ## usage
 
