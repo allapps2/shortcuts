@@ -10,7 +10,21 @@ The disadvantage of this is that the configuration is more verbose compared to Y
 other simple formats, but it is negligible compared to the benefits that integration 
 into the host application brings.
 
-## global install
+## installation
+
+### requirements
+
+- PHP 8.2
+  on Alpine Linux just run `apk add php82-cli`. If your Alpine Linux does
+  not support this package, you can install PHP from the sources, or install an  
+  appropriate version of Alpine Linux. 
+
+### download 
+
+download `short.phar` from https://github.com/allapps2/shortcuts/blob/main/bin/short.phar
+and put it into your project (usually ./bin/ folder).
+
+### global install
 
 to make `st` alias available everywhere:
 
