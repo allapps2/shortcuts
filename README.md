@@ -22,7 +22,7 @@ into the host application brings.
 ### download
 
 download `short.phar` from https://github.com/allapps2/shortcuts/blob/main/bin/short.phar
-and put it into your project (usually ./bin/ folder).
+and put it into your project (usually the folder where you will create shortcuts.php).
 
 ### global install
 
@@ -45,9 +45,10 @@ in folder with shortcuts.php:
 ```php
 use Shortcuts\IBuilder;
 use Shortcuts\ICommand\CommandsCollection;
+use Shortcuts\IEnvDTO\_EnvDTO;
 use Shortcuts\ShortcutsCollection;
 
-class EnvDTO extends Shortcuts\IEnvDTO\_EnvDTO {
+class EnvDTO extends _EnvDTO {
     public string $ENV_VARIABLE1 = 'value1';
     public string $ENV_VARIABLE2 = 'value2';
 }

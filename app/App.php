@@ -211,7 +211,9 @@ class App
 
         $configFile = getcwd() . '/' . IBuilder::CONFIG_FILE;
         if (is_file($configFile)) {
+            ob_start(); // prevent file content output in case of invalid php or errors
             $builder = @require($configFile);
+            ob_end_clean();
             if (!$builder instanceof IBuilder) {
                 $this->echoLn(
                     'must return instance of ' . IBuilder::class . ': ' . $configFile
