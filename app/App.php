@@ -26,6 +26,17 @@ class App
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
+    const APP_SHORTCUT_JSON = 'json';
+    const RESERVED_SHORTCUTS = [
+        self::APP_SHORTCUT_PHAR,
+        self::APP_SHORTCUT_SETUP,
+        self::APP_SHORTCUT_JSON,
+    ];
+
+    const SUBCOMMAND_JSON_VERSION = 'version';
+    const SUBCOMMANDS_JSON = [
+        self::SUBCOMMAND_JSON_VERSION,
+    ];
 
     function handle(array $argv): void
     {
@@ -37,13 +48,8 @@ class App
                 return;
             }
 
-            switch ($dtoInput->shortcut) {
-                case self::APP_SHORTCUT_PHAR:
-                    (new PharCompiler($this))->compile();
-                    return;
-                case self::APP_SHORTCUT_SETUP:
-                    $this->setupGlobal($dtoInput->arguments[0] ?? '');
-                    return;
+            if ($this->_handleReservedShortcuts($dtoInput)) {
+                return;
             }
 
             $shortcuts = $dtoInput->builder->build();
@@ -70,6 +76,42 @@ class App
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
+    }
+
+    private function _handleReservedShortcuts(InputDTO $dtoInput): bool
+    {
+        switch ($dtoInput->shortcut) {
+            case self::APP_SHORTCUT_PHAR:
+                $this->_echoAppName();
+                (new PharCompiler($this))->compile();
+                return true;
+            case self::APP_SHORTCUT_SETUP:
+                $this->_echoAppName();
+                $this->setupGlobal($dtoInput->arguments[0] ?? '');
+                return true;
+            case self::APP_SHORTCUT_JSON:
+                $subcommand = $dtoInput->arguments[0] ?? '';
+                switch ($subcommand) {
+                    case self::SUBCOMMAND_JSON_VERSION:
+                        $this->echoLn(json_encode([
+                            'major' => self::VERSION_MAJOR,
+                            'minor' => self::VERSION_MINOR,
+                            'patch' => self::VERSION_PATCH,
+                        ]));
+                        return true;
+                    default:
+                        $this->_echoJsonError(
+                            $subcommand
+                                ? 'unknown subcommand: ' . $dtoInput->arguments[0]
+                                : 'missing subcommand, available: ' . (
+                                    implode(', ', self::SUBCOMMANDS_JSON)
+                                )
+                        );
+                        return true;
+                }
+        }
+
+        return false;
     }
 
     private function setupGlobal(string $alias): void
@@ -110,6 +152,11 @@ class App
     {
         $this->_echoAppName();
         $this->echoLn($msg);
+    }
+
+    private function _echoJsonError(string $msg): void
+    {
+        $this->echoLn(json_encode(['error' => $msg]));
     }
 
     private function _echoShortcuts(
@@ -231,8 +278,7 @@ class App
     {
         if ($shortcut = trim($argv[1] ?? '')) {
             $dto = new InputDTO($shortcut, array_map('trim', array_slice($argv, 2)));
-
-            if (in_array($shortcut, [self::APP_SHORTCUT_PHAR, self::APP_SHORTCUT_SETUP])) {
+            if (in_array($shortcut, self::RESERVED_SHORTCUTS)) {
                 return $dto;
             }
         } else {
