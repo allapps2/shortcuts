@@ -91,3 +91,10 @@ let you test your changes.
 ## recompile short.phar
 
 `./bin/compile.sh`
+
+## create git tag
+
+Set the version number in constants VERSION_* and recompile short.phar.\
+For tag name use the version number shown by
+
+`php ./bin/short.phar`

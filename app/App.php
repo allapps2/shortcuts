@@ -8,6 +8,22 @@ use Shortcuts\ICommand\CommandWithArgs;
 
 class App
 {
+    /**
+     * mainly for internal use, to identify the app.
+     * NEVER CHANGE THIS VALUE!
+     */
+    const CODENAME = 'shortcuts';
+
+    /**
+     * publicly used value, in opposite to @see self::CODENAME this one can be changed
+     * if needed (for example to solve conflicts with trademarks)
+     */
+    const NAME = 'shortcuts';
+
+    const VERSION_MAJOR = 1;
+    const VERSION_MINOR = 1;
+    const VERSION_PATCH = 0;
+
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
 
@@ -16,13 +32,9 @@ class App
         define('ROOT_DIR', dirname(__DIR__));
 
         try {
-            $dtoInput = $this->parseInput($argv);
+            $dtoInput = $this->_parseInput($argv);
             if (!$dtoInput) { // error input parsing
                 return;
-            }
-
-            if ($dtoInput && !$dtoInput->shortcut) {
-                $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
             }
 
             switch ($dtoInput->shortcut) {
@@ -37,14 +49,16 @@ class App
             $shortcuts = $dtoInput->builder->build();
 
             if (!$dtoInput->shortcut) {
-                $this->echoShortcuts($shortcuts);
+                $this->_echoAppName();
+                $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
+                $this->_echoShortcuts($shortcuts);
                 return;
             }
 
             $commands = $shortcuts->getIterator()[$dtoInput->shortcut] ?? null;
             if (!$commands) {
-                $this->echoLn("unknown shortcut '{$dtoInput->shortcut}'");
-                $this->echoShortcuts($shortcuts, showEnv: false);
+                $this->_echoError("unknown shortcut '{$dtoInput->shortcut}'");
+                $this->_echoShortcuts($shortcuts, showEnv: false);
                 return;
             }
 
@@ -54,7 +68,7 @@ class App
 
             $this->handleShortcut($commands, $dtoInput);
         } catch(UserFriendlyException $e) {
-            $this->echoLn($e->getMessage());
+            $this->_echoError($e->getMessage());
         }
     }
 
@@ -75,14 +89,30 @@ class App
         $fileContent = sprintf("#!%s\n<?php\nrequire('%s');\n", PHP_BINARY, $executable);
         $writtenBytes = @file_put_contents($dstFile, $fileContent);
         if ($writtenBytes !== strlen($fileContent)) {
-            $this->echoLn('Error writing to ' . $dstFile);
+            $this->_echoError('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            $this->echoLn("Now you can use '{$_alias}' in any directory with shortcuts.php");
+            $this->_echoError("Now you can use '{$_alias}' in any directory with shortcuts.php");
         }
     }
 
-    private function echoShortcuts(
+    private function _echoAppName(): void
+    {
+        $this->echoLn(self::NAME . ', version: ' . self::_getVersion());
+    }
+
+    private static function _getVersion(): string
+    {
+        return self::VERSION_MAJOR . '.' . self::VERSION_MINOR . '.' . self::VERSION_PATCH;
+    }
+
+    private function _echoError(string $msg): void
+    {
+        $this->_echoAppName();
+        $this->echoLn($msg);
+    }
+
+    private function _echoShortcuts(
         ShortcutsCollection $shortcuts, bool $showEnv = true
     ): void
     {
@@ -197,7 +227,7 @@ class App
         }
     }
 
-    private function parseInput(array $argv): ?InputDTO
+    private function _parseInput(array $argv): ?InputDTO
     {
         if ($shortcut = trim($argv[1] ?? '')) {
             $dto = new InputDTO($shortcut, array_map('trim', array_slice($argv, 2)));
@@ -215,14 +245,14 @@ class App
             $builder = @require($configFile);
             ob_end_clean();
             if (!$builder instanceof IBuilder) {
-                $this->echoLn(
+                $this->_echoError(
                     'must return instance of ' . IBuilder::class . ': ' . $configFile
                 );
                 return null;
             }
             $dto->setBuilder($builder);
         } else {
-            $this->echoLn('not found ' . $configFile);
+            $this->_echoError('not found ' . $configFile);
             return null;
         }
 
