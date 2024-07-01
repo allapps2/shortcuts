@@ -26,7 +26,7 @@ and put it into your project (usually the folder where you will create shortcuts
 
 ### global install
 
-to make `st` alias available everywhere:
+to make `sc` alias available everywhere:
 
 `sudo php short.phar setup-shortcuts-global`
 
@@ -38,7 +38,7 @@ or any custom alias:
 
 in folder with shortcuts.php:
 
-`st [<shortcut> [<arguments>]]`
+`sc [<shortcut> [<arguments>]]`
 
 ### example of shortcuts.php:
 
@@ -80,12 +80,12 @@ completion (at least PhpStorm can do it).
 
 # for contributors
 
-clone the repository and create `st` alias that points to index.php instead of
+clone the repository and create `sc` alias that points to index.php instead of
 short.phar:
 
 `sudo php </path/to/clone>/app/index.php setup-shortcuts-global`
 
-This way `st` will run your development version instead of the distributed one to
+This way `sc` will run your development version instead of the distributed one to
 let you test your changes.
 
 ## recompile short.phar
