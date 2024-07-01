@@ -57,16 +57,16 @@ return new class implements IBuilder {
     function build(): ShortcutsCollection {
         return new class extends ShortcutsCollection {
 
-            function alias1(): CommandsCollection {
+            function shortcut1(): CommandsCollection {
                 return (new CommandsCollection)->add('long command1');
             }
 
-            function alias2(): CommandsCollection {
+            function shortcut2(): CommandsCollection {
                 return (new CommandsCollection)
                     ->addEnv(new EnvDTO())
                     ->add('long command2')
                     ->add('long command3')
-                    ->setDescription('alias description');
+                    ->setDescription('shortcut description');
                 };
             }
         };
