@@ -21,7 +21,7 @@ class App
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 1;
-    const VERSION_MINOR = 1;
+    const VERSION_MINOR = 2;
     const VERSION_PATCH = 0;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
@@ -55,7 +55,7 @@ class App
             $shortcuts = $dtoInput->builder->build();
 
             if (!$dtoInput->shortcut) {
-                $this->_echoAppName();
+                $this->_echoAppNameIfNoEchoed();
                 $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
                 $this->_echoShortcuts($shortcuts);
                 return;
@@ -82,11 +82,11 @@ class App
     {
         switch ($dtoInput->shortcut) {
             case self::APP_SHORTCUT_PHAR:
-                $this->_echoAppName();
+                $this->_echoAppNameIfNoEchoed();
                 (new PharCompiler($this))->compile();
                 return true;
             case self::APP_SHORTCUT_SETUP:
-                $this->_echoAppName();
+                $this->_echoAppNameIfNoEchoed();
                 $this->setupGlobal($dtoInput->arguments[0] ?? '');
                 return true;
             case self::APP_SHORTCUT_JSON:
@@ -134,13 +134,17 @@ class App
             $this->_echoError('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            $this->_echoError("Now you can use '{$_alias}' in any directory with shortcuts.php");
+            $this->echoLn("Now you can use '{$_alias}' in any directory with shortcuts.php");
         }
     }
 
-    private function _echoAppName(): void
+    private function _echoAppNameIfNoEchoed(): void
     {
-        $this->echoLn(self::NAME . ', version: ' . self::_getVersion());
+        static $wasEchoed = false;
+        if (!$wasEchoed) {
+            $this->echoLn(self::NAME . ', version: ' . self::_getVersion());
+            $wasEchoed = true;
+        }
     }
 
     private static function _getVersion(): string
@@ -150,7 +154,7 @@ class App
 
     private function _echoError(string $msg): void
     {
-        $this->_echoAppName();
+        $this->_echoAppNameIfNoEchoed();
         $this->echoLn($msg);
     }
 
