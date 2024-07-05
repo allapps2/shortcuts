@@ -4,7 +4,7 @@ namespace Shortcuts\IEnvDTO;
 
 use Shortcuts\IEnvDTO;
 
-abstract class _EnvDTO implements IEnvDTO
+abstract class AbstractEnvDTO implements IEnvDTO
 {
     function asArray(): array
     {

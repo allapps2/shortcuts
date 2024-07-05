@@ -45,10 +45,10 @@ in folder with shortcuts.php:
 ```php
 use Shortcuts\IBuilder;
 use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\IEnvDTO\_EnvDTO;
+use Shortcuts\IEnvDTO\AbstractEnvDTO;
 use Shortcuts\ShortcutsCollection;
 
-class EnvDTO extends _EnvDTO {
+class EnvDTO extends AbstractEnvDTO {
     public string $ENV_VARIABLE1 = 'value1';
     public string $ENV_VARIABLE2 = 'value2';
 }
