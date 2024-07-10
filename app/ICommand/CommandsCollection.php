@@ -3,6 +3,7 @@
 namespace Shortcuts\ICommand;
 
 use Closure;
+use Shortcuts\ConsoleService;
 use Shortcuts\ICommand;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionsCollection;
 
@@ -11,11 +12,17 @@ class CommandsCollection
     private array $items = [];
     private string $description = '';
     private array $env = [];
-    private string $workingDir;
 
     function add(string $command, bool $echoCommand = false): static
     {
         $this->items[] = new CommandWithoutArgs($command, $echoCommand);
+
+        return $this;
+    }
+
+    function addICommand(ICommand $command): static
+    {
+        $this->items[] = $command;
 
         return $this;
     }
@@ -32,7 +39,10 @@ class CommandsCollection
      */
     function walk(): \Generator
     {
-        foreach ($this->items as $command) {
+        $i = -1;
+        // foreach is not used, because items can be added during the loop
+        while(++$i < count($this->items)) {
+            $command = $this->items[$i];
             yield $command;
         }
     }
@@ -100,10 +110,5 @@ class CommandsCollection
         $this->items[] = new WorkingDir($dir);
 
         return $this;
-    }
-
-    function getWorkingDir(): ?string
-    {
-        return $this->workingDir ?? null;
     }
 }

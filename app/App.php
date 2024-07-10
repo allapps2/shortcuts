@@ -6,6 +6,7 @@ use Phar;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionDTO;
 use Shortcuts\ICommand\CommandsCollection;
 use Shortcuts\ICommand\CallbackWithArgs;
+use Shortcuts\ICommand\CommandWithoutArgs;
 use Shortcuts\ICommand\WorkingDir;
 
 class App
@@ -55,7 +56,7 @@ class App
 
         try {
             $dtoInput = $this->_parseInput($argv);
-            if (!$dtoInput) { // error input parsing
+            if (!$dtoInput) { // error during input parsing
                 return;
             }
             $this->di->setInput($dtoInput);
@@ -64,24 +65,27 @@ class App
                 return;
             }
 
-            $shortcuts = $dtoInput->builder->build();
-            $shortcuts->init($this->di);
+            $shortcutsOriginal = $dtoInput->builder->build();
+            $shortcutsOriginal->init($this->di);
+            $shortcuts = ShortcutsCompiledCollection::compile($shortcutsOriginal);
 
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
-                ConsoleService::echo('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
+                ConsoleService::echo(
+                    'Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]'
+                );
                 $this->_echoShortcuts($shortcuts);
                 return;
             }
 
-            $commands = $shortcuts->getIterator()[$dtoInput->shortcut] ?? null;
+            $commands = $shortcuts->getCommands($dtoInput->shortcut);
             if (!$commands) {
                 $this->_echoError("unknown shortcut '{$dtoInput->shortcut}'");
                 $this->_echoShortcuts($shortcuts, showEnv: false);
                 return;
             }
 
-            $this->handleShortcut($commands, $dtoInput, $shortcuts);
+            $this->handleShortcut($commands, $dtoInput, $shortcutsOriginal);
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
@@ -143,7 +147,9 @@ class App
             $this->_echoError('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            ConsoleService::echo("Now you can use '{$_alias}' in any directory with shortcuts.php");
+            ConsoleService::echo(
+                "Now you can use '{$_alias}' in any directory with shortcuts.php"
+            );
         }
     }
 
@@ -173,7 +179,7 @@ class App
     }
 
     private function _echoShortcuts(
-        ShortcutsCollection $shortcuts, bool $showEnv = true
+        ShortcutsCompiledCollection $shortcuts, bool $showEnv = true
     ): void
     {
         $prefix = '  ';
@@ -182,7 +188,7 @@ class App
 
         $shortcutMaxLen = 0;
         $argMaxLen = 0;
-        foreach ($shortcuts as $shortcut => $commands) {
+        foreach ($shortcuts->walk() as $shortcut => $commands) {
             $shortcutMaxLen = max($shortcutMaxLen, strlen($shortcut));
             foreach ($commands->getArguments() as $dtoArg) {
                 $argMaxLen = max($argMaxLen, strlen($dtoArg->name));
@@ -199,7 +205,7 @@ class App
         $envNonDefault = [];
         if ($showEnv) {
             $envAll = [];
-            foreach ($shortcuts as $shortcut => $commands) {
+            foreach ($shortcuts->walk() as $shortcut => $commands) {
                 foreach ($commands->getEnv() as $var => $value) {
                     if (!isset($envAll[$var][$value])) {
                         $envAll[$var][$value] = [];
@@ -209,7 +215,7 @@ class App
             }
 
             if (!empty($envAll)) {
-                $shortcutsCount = count($shortcuts->getIterator());
+                $shortcutsCount = $shortcuts->count();
                 foreach ($envAll as $var => $values) {
                     foreach ($values as $value => $shortcutNames) {
                         if (count($shortcutNames) === $shortcutsCount) {
@@ -229,7 +235,7 @@ class App
 
         // shortcuts
         ConsoleService::echo('available shortcuts:');
-        foreach ($shortcuts as $shortcut => $commands) {
+        foreach ($shortcuts->walk() as $shortcut => $commands) {
             if ($commands->getDescription()) {
                 ConsoleService::echo(
                     $prefix .
@@ -329,18 +335,28 @@ class App
     }
 
     private function handleShortcut(
-        CommandsCollection $commands, InputDTO $dtoInput, ShortcutsCollection $shortcuts
+        CommandsCollection $commands, InputDTO $dtoInput, ShortcutsCollection $thisContext
     ): void
     {
-        $console = $this->di->getConsoleServiceFactory()->create($commands->getEnv());
-        foreach ($commands->walk() as $command) {
-            $sCmd = $command->compose($dtoInput->namedArguments, $shortcuts);
-            if ($command instanceof WorkingDir) {
-                $console->setCwd($sCmd);
-            } else {
-                if (!$console->execStdout($sCmd, $command->isEchoRequired())) {
+        // use clone to prevent collection change that can occur inside callback
+        $_commands = clone $commands;
+
+        $console = $this->di->getConsoleServiceFactory()->create($_commands->getEnv());
+        foreach ($_commands->walk() as $command) {
+            if ($command instanceof CallbackWithArgs) {
+                $command->composer->call(
+                    $thisContext,
+                    $_commands,
+                    ...$command->populateArgsWithValues($dtoInput->namedArguments)
+                );
+            } elseif ($command instanceof WorkingDir) {
+                $console->setCwd($command->dir);
+            } elseif ($command instanceof CommandWithoutArgs) {
+                if (!$console->execStdout($command->command, $command->isEchoRequired())) {
                     break;
                 }
+            } else {
+                throw new \Exception('Unsupported command: ' . get_class($command));
             }
         }
     }

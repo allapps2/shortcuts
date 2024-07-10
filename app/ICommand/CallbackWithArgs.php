@@ -6,43 +6,13 @@ use Shortcuts\ICommand;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinition;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionDTO;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionsCollection;
-use Shortcuts\ShortcutsCollection;
 use Shortcuts\UserFriendlyException;
 
 readonly class CallbackWithArgs implements ICommand
 {
     const ARG_PREFIX = '--';
 
-    function __construct(private \Closure $composer)
-    {
-        $refFunc = new \ReflectionFunction($composer);
-        if (
-            !$refFunc->getReturnType() ||
-            $refFunc->getReturnType()->getName() !== CommandsCollection::class ||
-            $refFunc->getReturnType()->allowsNull() === false
-        ) {
-            throw new \Exception(
-                'Missing return type for callback, that must be ?' .
-                CommandsCollection::class . ' ("?" is required) ' .
-                ' in ' . $refFunc->getFileName() . ':' . $refFunc->getStartLine()
-            );
-        }
-    }
-
-    function compose(array $argumentsEscaped, ShortcutsCollection $thisForCallback): string
-    {
-        $args = $this->_populateArgsWithValues($argumentsEscaped);
-
-        $cmds = [];
-        $commands = $this->composer->call($thisForCallback, ...$args);
-        if ($commands instanceof CommandsCollection) {
-            foreach ($commands->walk() as $command) {
-                $cmds[] = $command->compose($argumentsEscaped, $thisForCallback);
-            }
-        }
-
-        return implode("\n", $cmds);
-    }
+    function __construct(public \Closure $composer) {}
 
     function isEchoRequired(): bool
     {
@@ -50,7 +20,7 @@ readonly class CallbackWithArgs implements ICommand
         return false;
     }
 
-    private function _populateArgsWithValues(array $inputArguments): array
+    function populateArgsWithValues(array $inputArguments): array
     {
         $values = [];
 
@@ -102,7 +72,20 @@ readonly class CallbackWithArgs implements ICommand
         $boolException = "Fix definition of %s argument, bool arguments " .
             "must have default value FALSE, because it is used as optional flag";
 
+        $isFirst = true;
         foreach ($params as $param) {
+            if ($isFirst) {
+                $isFirst = false;
+                if ($param->getType()->getName() !== CommandsCollection::class) {
+                    throw new \Exception(
+                        'First parameter must have type ' . CommandsCollection::class .
+                        ' in ' . (
+                            $refFunc->getFileName() . ':' . $refFunc->getStartLine()
+                        )
+                    );
+                }
+                continue;
+            }
             if ($param->isVariadic()) {
                 $dtoArg = new ArgDefinitionDTO('', ArgDefinitionDTO::TYPE_VARIADIC);
             } else {
