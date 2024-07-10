@@ -2,26 +2,20 @@
 
 namespace Shortcuts\ICommand;
 
-use ArrayIterator;
 use Closure;
-use IteratorAggregate;
 use Shortcuts\ICommand;
-use Shortcuts\ICommand\CommandWithArgs\ArgDefinitionsCollection;
-use Shortcuts\IEnvDTO;
-use Traversable;
+use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionsCollection;
 
-class CommandsCollection implements IteratorAggregate
+class CommandsCollection
 {
     private array $items = [];
     private string $description = '';
-    private Closure $onBefore;
+    private array $env = [];
+    private string $workingDir;
 
-    /** @var IEnvDTO[] */
-    private array $envs = [];
-
-    function add(ICommand|string $command): static
+    function add(string $command, bool $echoCommand = false): static
     {
-        $this->items[] = is_string($command) ? new CommandWithoutArgs($command) : $command;
+        $this->items[] = new CommandWithoutArgs($command, $echoCommand);
 
         return $this;
     }
@@ -36,9 +30,11 @@ class CommandsCollection implements IteratorAggregate
     /**
      * @return ICommand[]
      */
-    function getIterator(): Traversable
+    function walk(): \Generator
     {
-        return new ArrayIterator($this->items);
+        foreach ($this->items as $command) {
+            yield $command;
+        }
     }
 
     function getArguments(): ArgDefinitionsCollection
@@ -46,7 +42,7 @@ class CommandsCollection implements IteratorAggregate
         $arguments = new ArgDefinitionsCollection();
 
         foreach ($this->items as $command) {
-            if ($command instanceof CommandWithArgs) {
+            if ($command instanceof CallbackWithArgs) {
                 $arguments->mergeWithCollection($command->detectArguments());
             }
         }
@@ -73,32 +69,41 @@ class CommandsCollection implements IteratorAggregate
         return $this->description;
     }
 
-    function addEnv(IEnvDTO $dto): static
+    function addEnv(array $env): static
     {
-        $this->envs[] = $dto;
+        $this->env = array_merge($this->env, $env);
 
         return $this;
     }
 
     function getEnv(): array
     {
-        $env = [];
-        foreach ($this->envs as $dto) {
-            $env = array_merge($env, $dto->asArray());
-        }
-
-        return $env;
+        return $this->env;
     }
 
-    function onBefore(Closure $closure): static
+    function addCallback(Closure $closure): static
     {
-        $this->onBefore = $closure;
+        $this->items[] = new CallbackWithArgs($closure);
 
         return $this;
     }
 
-    function getOnBefore(): ?Closure
+    function addEcho(string $str): static
     {
-        return $this->onBefore ?? null;
+        $this->items[] = new CommandWithoutArgs("echo \"{$str}\"", echoCommand: false);
+
+        return $this;
+    }
+
+    function changeWorkingDir(string $dir): static
+    {
+        $this->items[] = new WorkingDir($dir);
+
+        return $this;
+    }
+
+    function getWorkingDir(): ?string
+    {
+        return $this->workingDir ?? null;
     }
 }

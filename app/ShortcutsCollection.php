@@ -4,6 +4,7 @@ namespace Shortcuts;
 
 use ArrayIterator;
 use IteratorAggregate;
+use ReflectionClass;
 use ReflectionMethod;
 use ReflectionObject;
 use Shortcuts\ICommand\CommandsCollection;
@@ -12,6 +13,8 @@ use Traversable;
 abstract class ShortcutsCollection implements IteratorAggregate
 {
     private ArrayIterator $items;
+
+    function init(InjectablesContainer $di): void {}
 
     /**
      * @return CommandsCollection[]
@@ -23,9 +26,14 @@ abstract class ShortcutsCollection implements IteratorAggregate
 
             $refThis = new ReflectionObject($this);
             $methods = $refThis->getMethods(ReflectionMethod::IS_PUBLIC);
+            $forbidden = array_map(
+                fn(ReflectionMethod $refMethod) => $refMethod->getName(),
+                (new ReflectionClass(self::class))->getMethods()
+            );
+            $forbidden[] = '__construct';
             foreach ($methods as $refMethod) {
                 $shortcut = $refMethod->getName();
-                if (in_array($shortcut, ['__construct', 'getIterator'], true)) {
+                if (in_array($shortcut, $forbidden, true)) {
                     continue;
                 }
 

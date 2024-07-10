@@ -3,8 +3,10 @@
 namespace Shortcuts;
 
 use Phar;
+use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionDTO;
 use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\ICommand\CommandWithArgs;
+use Shortcuts\ICommand\CallbackWithArgs;
+use Shortcuts\ICommand\WorkingDir;
 
 class App
 {
@@ -21,7 +23,7 @@ class App
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 1;
-    const VERSION_MINOR = 2;
+    const VERSION_MINOR = 3;
     const VERSION_PATCH = 0;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
@@ -33,10 +35,19 @@ class App
         self::APP_SHORTCUT_JSON,
     ];
 
-    const SUBCOMMAND_JSON_VERSION = 'version';
-    const SUBCOMMANDS_JSON = [
-        self::SUBCOMMAND_JSON_VERSION,
+    const JSON_SUBCOMMAND_VERSION = 'version';
+    const JSON_SUBCOMMANDS = [
+        self::JSON_SUBCOMMAND_VERSION,
     ];
+
+    const ARG_VERBOSE = 'verbose';
+
+    private InjectablesContainer $di;
+
+    function __construct()
+    {
+        $this->di = new InjectablesContainer();
+    }
 
     function handle(array $argv): void
     {
@@ -47,16 +58,18 @@ class App
             if (!$dtoInput) { // error input parsing
                 return;
             }
+            $this->di->setInput($dtoInput);
 
             if ($this->_handleReservedShortcuts($dtoInput)) {
                 return;
             }
 
             $shortcuts = $dtoInput->builder->build();
+            $shortcuts->init($this->di);
 
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
-                $this->echoLn('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
+                ConsoleService::echo('Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]');
                 $this->_echoShortcuts($shortcuts);
                 return;
             }
@@ -68,11 +81,7 @@ class App
                 return;
             }
 
-            if ($onBefore = $commands->getOnBefore()) {
-                $onBefore->call($shortcuts);
-            }
-
-            $this->handleShortcut($commands, $dtoInput);
+            $this->handleShortcut($commands, $dtoInput, $shortcuts);
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
@@ -83,7 +92,7 @@ class App
         switch ($dtoInput->shortcut) {
             case self::APP_SHORTCUT_PHAR:
                 $this->_echoAppNameIfNoEchoed();
-                (new PharCompiler($this))->compile();
+                (new PharCompiler)->compile();
                 return true;
             case self::APP_SHORTCUT_SETUP:
                 $this->_echoAppNameIfNoEchoed();
@@ -92,8 +101,8 @@ class App
             case self::APP_SHORTCUT_JSON:
                 $subcommand = $dtoInput->arguments[0] ?? '';
                 switch ($subcommand) {
-                    case self::SUBCOMMAND_JSON_VERSION:
-                        $this->echoLn(json_encode([
+                    case self::JSON_SUBCOMMAND_VERSION:
+                        ConsoleService::echo(json_encode([
                             'major' => self::VERSION_MAJOR,
                             'minor' => self::VERSION_MINOR,
                             'patch' => self::VERSION_PATCH,
@@ -104,7 +113,7 @@ class App
                             $subcommand
                                 ? 'unknown subcommand: ' . $dtoInput->arguments[0]
                                 : 'missing subcommand, available: ' . (
-                                    implode(', ', self::SUBCOMMANDS_JSON)
+                                    implode(', ', self::JSON_SUBCOMMANDS)
                                 )
                         );
                         return true;
@@ -134,7 +143,7 @@ class App
             $this->_echoError('Error writing to ' . $dstFile);
         } else {
             chmod($dstFile, fileperms($dstFile) | 0111); // +x
-            $this->echoLn("Now you can use '{$_alias}' in any directory with shortcuts.php");
+            ConsoleService::echo("Now you can use '{$_alias}' in any directory with shortcuts.php");
         }
     }
 
@@ -142,7 +151,7 @@ class App
     {
         static $wasEchoed = false;
         if (!$wasEchoed) {
-            $this->echoLn(self::NAME . ', version: ' . self::_getVersion());
+            ConsoleService::echo(self::NAME . ', version: ' . self::_getVersion());
             $wasEchoed = true;
         }
     }
@@ -155,12 +164,12 @@ class App
     private function _echoError(string $msg): void
     {
         $this->_echoAppNameIfNoEchoed();
-        $this->echoLn($msg);
+        ConsoleService::echo($msg);
     }
 
     private function _echoJsonError(string $msg): void
     {
-        $this->echoLn(json_encode(['error' => $msg]));
+        ConsoleService::echo(json_encode(['error' => $msg]));
     }
 
     private function _echoShortcuts(
@@ -181,7 +190,7 @@ class App
         }
         $shortcutLen = max(
             $shortcutMaxLen,
-            $argMaxLen + strlen($prefix) + strlen(CommandWithArgs::ARG_PREFIX)
+            $argMaxLen + strlen($prefix) + strlen(CallbackWithArgs::ARG_PREFIX)
         ) + 1;
         $argLen = $shortcutLen - strlen($prefix);
 
@@ -219,35 +228,46 @@ class App
         }
 
         // shortcuts
-        $this->echoLn('available shortcuts:');
+        ConsoleService::echo('available shortcuts:');
         foreach ($shortcuts as $shortcut => $commands) {
             if ($commands->getDescription()) {
-                $this->echoLn(
+                ConsoleService::echo(
                     $prefix .
                     str_pad($shortcut, $shortcutLen) .
                     $descSeparator . $commands->getDescription()
                 );
             } else {
-                $this->echoLn($prefix . $shortcut);
+                ConsoleService::echo($prefix . $shortcut);
             }
 
             foreach ($commands->getArguments() as $dtoArg) {
-                $arg = $prefix . $prefix .
-                    str_pad(CommandWithArgs::ARG_PREFIX . $dtoArg->name, $argLen);
+                $prefixedName = $dtoArg->type === ArgDefinitionDTO::TYPE_VARIADIC
+                    ? '*'
+                    : (CallbackWithArgs::ARG_PREFIX . $dtoArg->name);
+                $arg = $prefix . $prefix . str_pad($prefixedName, $argLen) . $argsSeparator;
+                if (isset($dtoArg->description)) {
+                    $descriptionSeparator = ', ';
+                    $arg .= $dtoArg->description;
+                } else {
+                    $descriptionSeparator = '';
+                }
                 switch ($dtoArg->type) {
                     case 'bool':
-                        $arg .= $argsSeparator . 'optional flag';
+                        $arg .= $descriptionSeparator . 'optional flag';
                         break;
                     case 'string':
                         if ($dtoArg->hasDefaultValue()) {
-                            $arg .= $argsSeparator . 'optional';
+                            $arg .= $descriptionSeparator . 'optional';
                             if (!empty($dtoArg->defaultValue)) {
                                 $arg .= ', default: ' . $dtoArg->defaultValue;
                             }
                         }
                         break;
                     case 'array':
-                        $arg .= $argsSeparator . 'multiple values';
+                        $arg .= $descriptionSeparator . 'multiple values';
+                        break;
+                    case ArgDefinitionDTO::TYPE_VARIADIC:
+                        $arg .= $descriptionSeparator . 'all arguments are passed as is';
                         break;
                     default:
                         throw new \Exception(
@@ -255,38 +275,39 @@ class App
                             get_class($dtoArg)
                         );
                 }
-                $this->echoLn($arg);
+                ConsoleService::echo($arg);
             }
 
             if (isset($envNonDefault[$shortcut])) {
-                $this->echoLn($prefix . $prefix . 'environment variables:');
+                ConsoleService::echo($prefix . $prefix . 'environment variables:');
                 $vars = $envNonDefault[$shortcut];
                 ksort($vars);
                 foreach ($vars as $var => $value) {
-                    $this->echoLn($prefix . $prefix . $prefix . "{$var}={$value}");
+                    ConsoleService::echo($prefix . $prefix . $prefix . "{$var}={$value}");
                 }
             }
         }
 
         // default environment variables
         if ($envDefault) {
-            $this->echoLn('environment variables:');
+            ConsoleService::echo('environment variables:');
             ksort($envDefault);
             foreach ($envDefault as $var => $value) {
-                $this->echoLn($prefix . "{$var}={$value}");
+                ConsoleService::echo($prefix . "{$var}={$value}");
             }
         }
     }
 
     private function _parseInput(array $argv): ?InputDTO
     {
-        if ($shortcut = trim($argv[1] ?? '')) {
-            $dto = new InputDTO($shortcut, array_map('trim', array_slice($argv, 2)));
+        $shortcut = trim($argv[1] ?? '') ?: null;
+        if ($shortcut) {
+            $args = array_map('trim', array_slice($argv, 2));
             if (in_array($shortcut, self::RESERVED_SHORTCUTS)) {
-                return $dto;
+                return new InputDTO($shortcut, $args);
             }
         } else {
-            $dto = new InputDTO();
+            $args = [];
         }
 
         $configFile = getcwd() . '/' . IBuilder::CONFIG_FILE;
@@ -294,55 +315,33 @@ class App
             ob_start(); // prevent file content output in case of invalid php or errors
             $builder = @require($configFile);
             ob_end_clean();
-            if (!$builder instanceof IBuilder) {
-                $this->_echoError(
-                    'must return instance of ' . IBuilder::class . ': ' . $configFile
-                );
-                return null;
+            if ($builder instanceof IBuilder) {
+                return new InputDTO($shortcut, $args, $builder);
             }
-            $dto->setBuilder($builder);
+            $this->_echoError(
+                'must return instance of ' . IBuilder::class . ': ' . $configFile
+            );
         } else {
             $this->_echoError('not found ' . $configFile);
-            return null;
         }
 
-        return $dto;
+        return null;
     }
 
-    private function handleShortcut(CommandsCollection $commands, InputDTO $dtoInput): void
+    private function handleShortcut(
+        CommandsCollection $commands, InputDTO $dtoInput, ShortcutsCollection $shortcuts
+    ): void
     {
-        $env = $commands->getEnv();
-        $argsEscaped = $dtoInput->parseAndEscapeArguments();
-        foreach ($commands as $command) {
-            if (!$this->execCommand($command, $env, $argsEscaped)) {
-                break;
+        $console = $this->di->getConsoleServiceFactory()->create($commands->getEnv());
+        foreach ($commands->walk() as $command) {
+            $sCmd = $command->compose($dtoInput->namedArguments, $shortcuts);
+            if ($command instanceof WorkingDir) {
+                $console->setCwd($sCmd);
+            } else {
+                if (!$console->execStdout($sCmd, $command->isEchoRequired())) {
+                    break;
+                }
             }
         }
-    }
-
-    function echoLn(string $msg): void
-    {
-        echo $msg . "\n";
-    }
-
-    private function execCommand(ICommand $command, array $env, array $argsEscaped): bool
-    {
-        $sCmd = $command->compose($argsEscaped);
-
-        if ($command->isEchoRequired()) {
-            $this->echoLn($sCmd);
-        }
-
-        $process = proc_open($sCmd, [1 => STDOUT, 2 => STDERR], $pipes, env_vars: $env);
-        if (!is_resource($process)) {
-            $this->echoLn("failed to execute: {$sCmd}");
-            return false;
-        }
-        while(proc_get_status($process)['running']) {
-            sleep(1);
-        }
-        proc_close($process);
-
-        return true;
     }
 }

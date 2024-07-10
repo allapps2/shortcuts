@@ -13,15 +13,13 @@ class PharCompiler
 {
     const EXCLUDE_FILES = ['README.md', 'composer.json', 'compile.sh'];
 
-    function __construct(private readonly App $app) {}
-
     function compile(): void
     {
         $pharFile = Phar::running() ?: (ROOT_DIR . '/bin/short.phar');
         if (file_exists($pharFile)) {
             unlink($pharFile);
         }
-        $this->app->echoLn('destination: ' . $pharFile);
+        ConsoleService::echo('destination: ' . $pharFile);
 
         $phar = new Phar($pharFile);
         $phar->startBuffering();
@@ -46,7 +44,7 @@ class PharCompiler
         $phar->setStub($phar->createDefaultStub('app/index.php'));
         $phar->stopBuffering();
 
-        $this->app->echoLn('included files:');
-        $this->app->echoLn('  ' . implode("\n  ", array_keys($files)));
+        ConsoleService::echo('included files:');
+        ConsoleService::echo('  ' . implode("\n  ", array_keys($files)));
     }
 }

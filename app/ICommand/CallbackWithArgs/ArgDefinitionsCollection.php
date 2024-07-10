@@ -1,6 +1,6 @@
 <?php
 
-namespace Shortcuts\ICommand\CommandWithArgs;
+namespace Shortcuts\ICommand\CallbackWithArgs;
 
 use ArrayIterator;
 use IteratorAggregate;

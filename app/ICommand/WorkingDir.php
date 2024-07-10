@@ -5,17 +5,17 @@ namespace Shortcuts\ICommand;
 use Shortcuts\ICommand;
 use Shortcuts\ShortcutsCollection;
 
-class CommandWithoutArgs implements ICommand
+class WorkingDir implements ICommand
 {
-    function __construct(public string $command, public bool $echoCommand) {}
+    function __construct(public string $dir) {}
 
     function compose(array $argumentsEscaped, ShortcutsCollection $thisForCallback): string
     {
-        return $this->command;
+        return $this->dir;
     }
 
     function isEchoRequired(): bool
     {
-        return $this->echoCommand;
+        return false;
     }
 }
