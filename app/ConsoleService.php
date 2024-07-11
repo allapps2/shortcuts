@@ -47,7 +47,7 @@ class ConsoleService
     private function _echoCommandInVerboseMode(string $command): void
     {
         if (!$this->wasCwdDisplayed) {
-            self::echo('cwd: ' . ($this->cwd ?: getcwd()), self::YELLOW);
+            self::echo('working dir: ' . ($this->cwd ?: getcwd()), self::YELLOW);
             $this->wasCwdDisplayed = true;
         }
         self::echo($command, self::YELLOW);
@@ -102,11 +102,11 @@ class ConsoleService
             self::echo("failed to execute: {$command}");
             return false;
         }
-        while(proc_get_status($process)['running']) {
-            sleep(1);
+        while(($status = proc_get_status($process)) && $status['running']) {
+            usleep(500000);
         }
         proc_close($process);
 
-        return true;
+        return ($status['exitcode'] === 0);
     }
 }
