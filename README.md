@@ -15,9 +15,7 @@ into the host application brings.
 ### requirements
 
 - PHP 8.2\
-  on Alpine Linux just run `apk add php82-cli`. If your Alpine Linux does
-  not support this package, you can install PHP from the sources, or install an
-  appropriate version of Alpine Linux.
+  php-cli package is enough (for example on Alpine Linux it can be installed by `apk add php82-cli`).
 
 ### download
 
