@@ -94,7 +94,7 @@ To simplify `shortcuts.php` editing you can put `short.phar` into your project
 (usually into the folder with `shortcuts.php`) and your IDE will be able to provide code
 completion (at least PhpStorm can do it).
 
-# for contributors
+## for contributors
 
 clone the repository and create `sc` alias that points to index.php instead of
 short.phar:
@@ -104,11 +104,11 @@ short.phar:
 This way `sc` will run your development version instead of the distributed one to
 let you test your changes.
 
-## recompile short.phar
+### recompile short.phar
 
 `./bin/compile.sh`
 
-## create git tag
+### create git tag
 
 Set the version number in constants VERSION_* and recompile short.phar.\
 For tag name use the version number shown by
