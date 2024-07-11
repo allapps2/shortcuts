@@ -62,28 +62,25 @@ return new class implements IBuilder {
                     ->add('long command2')
                     ->add('long command3')
                     ->setDescription('shortcut description');
-                };
             }
 
             // shortcut3 --requiredArgument=value [--optionalArgument=value]
             function shortcut3(): CommandsCollection {
-                return (new CommandsCollection)
-                    ->addCallback(
-                        function (
-                            CommandsCollection $commands,
-                            string $requiredArgument,
-                            string $optionalArgument = 'default value'
-                        ) {
-                            if ($requiredArgument === 'some value') {
-                                $commands->add('command4');
-                            } else {
-                                $commands->add('command5 ' . $optionalArgument);
-                            }
+                return (new CommandsCollection)->addCallback(
+                    function (
+                        CommandsCollection $commands,
+                        string $requiredArgument,
+                        string $optionalArgument = 'default value'
+                    ) {
+                        if ($requiredArgument === 'some value') {
+                            $commands->add('command4');
+                        } else {
+                            $commands->add('command5 ' . $optionalArgument);
                         }
-                    );
-                };
+                    }
+                );
             }
-        };
+        }
     }
 };
 ```
