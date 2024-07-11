@@ -65,9 +65,7 @@ return new class implements IBuilder {
                 };
             }
 
-            /**
-             * called as `sc shortcut3 --requiredArgument=value [--optionalArgument=value]`
-             */
+            // shortcut3 --requiredArgument=value [--optionalArgument=value]
             function shortcut3(): CommandsCollection {
                 return (new CommandsCollection)
                     ->addCallback(
