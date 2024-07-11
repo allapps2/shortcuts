@@ -14,7 +14,7 @@ into the host application brings.
 
 ### requirements
 
-- PHP 8.2\
+- PHP 8.2+\
   php-cli package is enough (for example on Alpine Linux it can be installed by `apk add php82-cli`).
 
 ### download
