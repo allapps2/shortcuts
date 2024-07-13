@@ -3,15 +3,18 @@
 namespace Shortcuts\ICommand;
 
 use Closure;
-use Shortcuts\ConsoleService;
 use Shortcuts\ICommand;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionsCollection;
+use Shortcuts\InputDTO;
+use Shortcuts\ShortcutsCollection;
 
 class CommandsCollection
 {
     private array $items = [];
     private string $description = '';
     private array $env = [];
+    private ShortcutsCollection $runTimeThisContext;
+    private InputDTO $runTimeInputDto;
 
     function add(string $command, bool $echoCommand = false): static
     {
@@ -37,14 +40,9 @@ class CommandsCollection
     /**
      * @return ICommand[]
      */
-    function walk(): \Generator
+    function asArray(): array
     {
-        $i = -1;
-        // foreach is not used, because items can be added during the loop
-        while(++$i < count($this->items)) {
-            $command = $this->items[$i];
-            yield $command;
-        }
+        return $this->items;
     }
 
     function getArguments(): ArgDefinitionsCollection

@@ -6,8 +6,6 @@ use Phar;
 use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionDTO;
 use Shortcuts\ICommand\CommandsCollection;
 use Shortcuts\ICommand\CallbackWithArgs;
-use Shortcuts\ICommand\CommandWithoutArgs;
-use Shortcuts\ICommand\WorkingDir;
 
 class App
 {
@@ -25,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 1;
     const VERSION_MINOR = 3;
-    const VERSION_PATCH = 0;
+    const VERSION_PATCH = 1;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
@@ -85,7 +83,7 @@ class App
                 return;
             }
 
-            $this->handleShortcut($commands, $dtoInput, $shortcutsOriginal);
+            $this->handleShortcut($commands, $shortcutsOriginal);
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
@@ -335,28 +333,14 @@ class App
     }
 
     private function handleShortcut(
-        CommandsCollection $commands, InputDTO $dtoInput, ShortcutsCollection $thisContext
+        CommandsCollection $commands, ShortcutsCollection $shortcuts
     ): void
     {
-        // use clone to prevent collection change that can occur inside callback
-        $_commands = clone $commands;
-
-        $console = $this->di->getConsoleServiceFactory()->create($_commands->getEnv());
-        foreach ($_commands->walk() as $command) {
-            if ($command instanceof CallbackWithArgs) {
-                $command->composer->call(
-                    $thisContext,
-                    $_commands,
-                    ...$command->populateArgsWithValues($dtoInput->namedArguments)
-                );
-            } elseif ($command instanceof WorkingDir) {
-                $console->setCwd($command->dir);
-            } elseif ($command instanceof CommandWithoutArgs) {
-                if (!$console->execStdout($command->command, $command->isEchoRequired())) {
-                    break;
-                }
-            } else {
-                throw new \Exception('Unsupported command: ' . get_class($command));
+        $console = $this->di->getConsoleServiceFactory()->create($commands->getEnv());
+        $shortcuts->enableRuntimeMode($console);
+        foreach ($shortcuts->resolveCallbacks($commands) as $command) {
+            if (!$console->execSTDOUT($command->command, $command->isEchoRequired())) {
+                break;
             }
         }
     }

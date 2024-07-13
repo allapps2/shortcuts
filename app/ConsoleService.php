@@ -4,8 +4,6 @@ namespace Shortcuts;
 
 class ConsoleService
 {
-    const DIVIDER_IN_VERBOSE_MODE = '---';
-
     private const GREEN = "\033[92m";
     private const GREEN_BG = "\033[30;42m";
     private const YELLOW_BG = "\033[30;43m";
@@ -19,8 +17,9 @@ class ConsoleService
     private ?string $cwd = null;
 
     function __construct(
-        private readonly array   $env,
-        private readonly bool    $isVerboseMode
+        private readonly array $env,
+        public readonly array $args,
+        private readonly bool  $isVerboseMode
     ) {}
 
     static function echo(string $msg, string $color = null): void
@@ -83,7 +82,7 @@ class ConsoleService
         return $output;
     }
 
-    function execStdout(string $command, bool $echoCommand = false): bool
+    function execSTDOUT(string $command, bool $echoCommand = false): bool
     {
         if ($this->isVerboseMode) {
             $this->_echoCommandInVerboseMode($command);
