@@ -1,6 +1,6 @@
 # shortcuts
 
-Command line tool to call sets of commands using short aliases.
+Console tool to call sets of commands using short aliases.
 
 A distinctive feature is that it is configured entirely in **PHP**, which means
 accessibility of **code-completion**, finding of **usage**, using of your application **constants**, **validation** and actually brings

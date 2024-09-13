@@ -23,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 1;
     const VERSION_MINOR = 3;
-    const VERSION_PATCH = 1;
+    const VERSION_PATCH = 2;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
@@ -63,27 +63,27 @@ class App
                 return;
             }
 
-            $shortcutsOriginal = $dtoInput->builder->build();
-            $shortcutsOriginal->init($this->di);
-            $shortcuts = ShortcutsCompiledCollection::compile($shortcutsOriginal);
+            $shortcutsCollection = $dtoInput->builder->build();
+            $shortcutsCollection->onAfterConstruct($this->di);
 
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
                 ConsoleService::echo(
                     'Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]'
                 );
-                $this->_echoShortcuts($shortcuts);
+                $this->_echoShortcuts($shortcutsCollection);
                 return;
             }
 
-            $commands = $shortcuts->getCommands($dtoInput->shortcut);
-            if (!$commands) {
+            $availableShortcuts = $shortcutsCollection->getAvailableShortcuts();
+            if (!isset($availableShortcuts[$dtoInput->shortcut])) {
                 $this->_echoError("unknown shortcut '{$dtoInput->shortcut}'");
-                $this->_echoShortcuts($shortcuts, showEnv: false);
+                $this->_echoShortcuts($shortcutsCollection, showEnv: false);
                 return;
             }
+            $commands = $availableShortcuts[$dtoInput->shortcut];
 
-            $this->handleShortcut($commands, $shortcutsOriginal);
+            $this->handleShortcut($commands, $shortcutsCollection);
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
@@ -177,16 +177,17 @@ class App
     }
 
     private function _echoShortcuts(
-        ShortcutsCompiledCollection $shortcuts, bool $showEnv = true
+        ShortcutsCollection $collection, bool $showEnv = true
     ): void
     {
         $prefix = '  ';
         $descSeparator = '- ';
         $argsSeparator = str_repeat(' ', strlen($descSeparator));
+        $shortcuts = $collection->getAvailableShortcuts();
 
         $shortcutMaxLen = 0;
         $argMaxLen = 0;
-        foreach ($shortcuts->walk() as $shortcut => $commands) {
+        foreach ($shortcuts as $shortcut => $commands) {
             $shortcutMaxLen = max($shortcutMaxLen, strlen($shortcut));
             foreach ($commands->getArguments() as $dtoArg) {
                 $argMaxLen = max($argMaxLen, strlen($dtoArg->name));
@@ -203,7 +204,7 @@ class App
         $envNonDefault = [];
         if ($showEnv) {
             $envAll = [];
-            foreach ($shortcuts->walk() as $shortcut => $commands) {
+            foreach ($shortcuts as $shortcut => $commands) {
                 foreach ($commands->getEnv() as $var => $value) {
                     if (!isset($envAll[$var][$value])) {
                         $envAll[$var][$value] = [];
@@ -213,7 +214,7 @@ class App
             }
 
             if (!empty($envAll)) {
-                $shortcutsCount = $shortcuts->count();
+                $shortcutsCount = count($shortcuts);
                 foreach ($envAll as $var => $values) {
                     foreach ($values as $value => $shortcutNames) {
                         if (count($shortcutNames) === $shortcutsCount) {
@@ -233,7 +234,7 @@ class App
 
         // shortcuts
         ConsoleService::echo('available shortcuts:');
-        foreach ($shortcuts->walk() as $shortcut => $commands) {
+        foreach ($shortcuts as $shortcut => $commands) {
             if ($commands->getDescription()) {
                 ConsoleService::echo(
                     $prefix .

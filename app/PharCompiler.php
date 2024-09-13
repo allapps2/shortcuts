@@ -11,7 +11,7 @@ use SplFileInfo;
 
 class PharCompiler
 {
-    const EXCLUDE_FILES = ['README.md', 'composer.json', 'compile.sh'];
+    const EXCLUDE_FILES = ['composer.json', 'compile.sh'];
 
     function compile(): void
     {

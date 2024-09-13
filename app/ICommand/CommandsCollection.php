@@ -103,7 +103,7 @@ class CommandsCollection
         return $this;
     }
 
-    function changeWorkingDir(string $dir): static
+    function setWorkingDir(string $dir): static
     {
         $this->items[] = new WorkingDir($dir);
 
