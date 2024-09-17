@@ -41,7 +41,11 @@ in folder with shortcuts.php:
 ### example of shortcuts.php:
 
 ```php
-use Shortcuts\Command\CommandsCollection;use Shortcuts\IBuilder;use Shortcuts\Shortcut;use Shortcuts\ShortcutArg;use Shortcuts\ShortcutsCollection;
+use Shortcuts\Command\CommandsCollection;
+use Shortcuts\IBuilder;
+use Shortcuts\Shortcut;
+use Shortcuts\ShortcutArg;
+use Shortcuts\ShortcutsCollection;
 
 return new class implements IBuilder {
     function build(): ShortcutsCollection {
