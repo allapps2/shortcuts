@@ -46,26 +46,28 @@ use Shortcuts\IBuilder;
 use Shortcuts\Shortcut;
 use Shortcuts\ShortcutArg;
 use Shortcuts\ShortcutsCollection;
+use Shortcuts\ShortcutsCollectionFactory;
+
+class Shortcuts extends ShortcutsCollection {
+    function shortcut1(): CommandsCollection {
+        return (new CommandsCollection)->add('long command1');
+    }
+
+    #[Shortcut(description: 'Shortcut description')]
+    function shortcut2(
+        string $requiredArgument,
+        #[ShortcutArg(description: 'Optional argument')]
+        string $optionalArgument = 'default value'
+    ): CommandsCollection {
+        return (new CommandsCollection)
+            ->add('long command2 ' . $requiredArgument)
+            ->add('long command3 ' . $optionalArgument);
+    }
+}
 
 return new class implements IBuilder {
-    function build(): ShortcutsCollection {
-        return new class extends ShortcutsCollection {
-
-            function shortcut1(): CommandsCollection {
-                return (new CommandsCollection)->add('long command1');
-            }
-
-            #[Shortcut(description: 'Shortcut description')]
-            function shortcut2(
-                string $requiredArgument,
-                #[ShortcutArg(description: 'Optional argument')]
-                string $optionalArgument = 'default value'
-            ): CommandsCollection {
-                return (new CommandsCollection)
-                    ->add('long command2 ' . $requiredArgument)
-                    ->add('long command3 ' . $optionalArgument);
-            }
-        }
+    function build(ShortcutsCollectionFactory $factory): ShortcutsCollection {
+        return $factory->create(Shortcuts::class);
     }
 };
 ```
