@@ -70,7 +70,7 @@ class App
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
                 ConsoleService::echo(
-                    'Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]'
+                    'Usage: '. basename($argv[0]) . ' [<shortcut> [<arguments>]]'
                 );
                 $this->_echoShortcuts($shortcuts);
                 return;
