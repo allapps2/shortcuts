@@ -41,9 +41,7 @@ in folder with shortcuts.php:
 ### example of shortcuts.php:
 
 ```php
-use Shortcuts\IBuilder;
-use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\ShortcutsCollection;
+use Shortcuts\Command\CommandsCollection;use Shortcuts\IBuilder;use Shortcuts\Shortcut;use Shortcuts\ShortcutArg;use Shortcuts\ShortcutsCollection;
 
 return new class implements IBuilder {
     function build(): ShortcutsCollection {
@@ -53,32 +51,15 @@ return new class implements IBuilder {
                 return (new CommandsCollection)->add('long command1');
             }
 
-            function shortcut2(): CommandsCollection {
+            #[Shortcut(description: 'Shortcut description')]
+            function shortcut2(
+                string $requiredArgument,
+                #[ShortcutArg(description: 'Optional argument')]
+                string $optionalArgument = 'default value'
+            ): CommandsCollection {
                 return (new CommandsCollection)
-                    ->addEnv([
-                        'ENV_VARIABLE1' => 'value1',
-                        'ENV_VARIABLE2' => 'value2',
-                    ])
-                    ->add('long command2')
-                    ->add('long command3')
-                    ->setDescription('shortcut description');
-            }
-
-            // shortcut3 --requiredArgument=value [--optionalArgument=value]
-            function shortcut3(): CommandsCollection {
-                return (new CommandsCollection)->addCallback(
-                    function (
-                        CommandsCollection $commands,
-                        string $requiredArgument,
-                        string $optionalArgument = 'default value'
-                    ) {
-                        if ($requiredArgument === 'some value') {
-                            $commands->add('command4');
-                        } else {
-                            $commands->add('command5 ' . $optionalArgument);
-                        }
-                    }
-                );
+                    ->add('long command2 ' . $requiredArgument)
+                    ->add('long command3 ' . $optionalArgument);
             }
         }
     }

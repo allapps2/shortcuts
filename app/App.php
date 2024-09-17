@@ -3,9 +3,9 @@
 namespace Shortcuts;
 
 use Phar;
-use Shortcuts\ICommand\CallbackWithArgs\ArgDefinitionDTO;
-use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\ICommand\CallbackWithArgs;
+use Shortcuts\Command\CommandsCollection;
+use Shortcuts\Shortcut\ShortcutDefinitionDTO;
+use Shortcuts\ShortcutArg\ArgDefinitionDTO;
 
 class App
 {
@@ -22,8 +22,8 @@ class App
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 1;
-    const VERSION_MINOR = 3;
-    const VERSION_PATCH = 2;
+    const VERSION_MINOR = 4;
+    const VERSION_PATCH = 0;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
@@ -39,7 +39,7 @@ class App
         self::JSON_SUBCOMMAND_VERSION,
     ];
 
-    const ARG_VERBOSE = 'verbose';
+    const ARG_VERBOSE = 'vvv';
 
     private InjectablesContainer $di;
 
@@ -63,27 +63,28 @@ class App
                 return;
             }
 
-            $shortcutsCollection = $dtoInput->builder->build();
-            $shortcutsCollection->onAfterConstruct($this->di);
+            $shortcuts = $dtoInput->builder->build(
+                new ShortcutsCollectionFactory($this->di)
+            );
 
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
                 ConsoleService::echo(
                     'Usage: '. basename($argv[0]) . ' [<shortcut>] [<arguments>]'
                 );
-                $this->_echoShortcuts($shortcutsCollection);
+                $this->_echoShortcuts($shortcuts);
                 return;
             }
 
-            $availableShortcuts = $shortcutsCollection->getAvailableShortcuts();
-            if (!isset($availableShortcuts[$dtoInput->shortcut])) {
+            $availableShortcuts = $shortcuts->getAvailableShortcuts();
+            $dtoShortcut = $availableShortcuts->getByName($dtoInput->shortcut);
+            if (!$dtoShortcut) {
                 $this->_echoError("unknown shortcut '{$dtoInput->shortcut}'");
-                $this->_echoShortcuts($shortcutsCollection, showEnv: false);
+                $this->_echoShortcuts($shortcuts, showShortcutsOnly: true);
                 return;
             }
-            $commands = $availableShortcuts[$dtoInput->shortcut];
 
-            $this->handleShortcut($commands, $shortcutsCollection);
+            $this->handleShortcut($dtoShortcut, $shortcuts);
         } catch(UserFriendlyException $e) {
             $this->_echoError($e->getMessage());
         }
@@ -177,7 +178,7 @@ class App
     }
 
     private function _echoShortcuts(
-        ShortcutsCollection $collection, bool $showEnv = true
+        ShortcutsCollection $collection, bool $showShortcutsOnly = false
     ): void
     {
         $prefix = '  ';
@@ -187,34 +188,34 @@ class App
 
         $shortcutMaxLen = 0;
         $argMaxLen = 0;
-        foreach ($shortcuts as $shortcut => $commands) {
-            $shortcutMaxLen = max($shortcutMaxLen, strlen($shortcut));
-            foreach ($commands->getArguments() as $dtoArg) {
+        foreach ($shortcuts->walk() as $dtoShortcut) {
+            $shortcutMaxLen = max($shortcutMaxLen, strlen($dtoShortcut->name));
+            foreach ($dtoShortcut->getArguments() as $dtoArg) {
                 $argMaxLen = max($argMaxLen, strlen($dtoArg->name));
             }
         }
         $shortcutLen = max(
             $shortcutMaxLen,
-            $argMaxLen + strlen($prefix) + strlen(CallbackWithArgs::ARG_PREFIX)
+            $argMaxLen + strlen($prefix) + strlen(InputDTO::ARG_PREFIX)
         ) + 1;
         $argLen = $shortcutLen - strlen($prefix);
 
         // environment variables
         $envDefault = [];
         $envNonDefault = [];
-        if ($showEnv) {
+        if (!$showShortcutsOnly) {
             $envAll = [];
-            foreach ($shortcuts as $shortcut => $commands) {
-                foreach ($commands->getEnv() as $var => $value) {
+            foreach ($shortcuts->walk() as $dtoShortcut) {
+                foreach ($dtoShortcut->getEnv() as $var => $value) {
                     if (!isset($envAll[$var][$value])) {
                         $envAll[$var][$value] = [];
                     }
-                    $envAll[$var][$value][] = $shortcut;
+                    $envAll[$var][$value][] = $dtoShortcut->name;
                 }
             }
 
             if (!empty($envAll)) {
-                $shortcutsCount = count($shortcuts);
+                $shortcutsCount = $shortcuts->count();
                 foreach ($envAll as $var => $values) {
                     foreach ($values as $value => $shortcutNames) {
                         if (count($shortcutNames) === $shortcutsCount) {
@@ -234,21 +235,21 @@ class App
 
         // shortcuts
         ConsoleService::echo('available shortcuts:');
-        foreach ($shortcuts as $shortcut => $commands) {
-            if ($commands->getDescription()) {
+        foreach ($shortcuts->walk() as $dtoShortcut) {
+            if (isset($dtoShortcut->description)) {
                 ConsoleService::echo(
                     $prefix .
-                    str_pad($shortcut, $shortcutLen) .
-                    $descSeparator . $commands->getDescription()
+                    str_pad($dtoShortcut->name, $shortcutLen) .
+                    $descSeparator . $dtoShortcut->description
                 );
             } else {
-                ConsoleService::echo($prefix . $shortcut);
+                ConsoleService::echo($prefix . $dtoShortcut->name);
             }
 
-            foreach ($commands->getArguments() as $dtoArg) {
+            foreach ($dtoShortcut->getArguments() as $dtoArg) {
                 $prefixedName = $dtoArg->type === ArgDefinitionDTO::TYPE_VARIADIC
                     ? '*'
-                    : (CallbackWithArgs::ARG_PREFIX . $dtoArg->name);
+                    : (InputDTO::ARG_PREFIX . $dtoArg->name);
                 $arg = $prefix . $prefix . str_pad($prefixedName, $argLen) . $argsSeparator;
                 if (isset($dtoArg->description)) {
                     $descriptionSeparator = ', ';
@@ -283,14 +284,23 @@ class App
                 ConsoleService::echo($arg);
             }
 
-            if (isset($envNonDefault[$shortcut])) {
+            if (isset($envNonDefault[$dtoShortcut->name])) {
                 ConsoleService::echo($prefix . $prefix . 'environment variables:');
-                $vars = $envNonDefault[$shortcut];
+                $vars = $envNonDefault[$dtoShortcut->name];
                 ksort($vars);
                 foreach ($vars as $var => $value) {
                     ConsoleService::echo($prefix . $prefix . $prefix . "{$var}={$value}");
                 }
             }
+        }
+
+        // common arguments
+        if (!$showShortcutsOnly) {
+            ConsoleService::echo('common arguments:');
+            ConsoleService::echo(
+                $prefix . str_pad(InputDTO::ARG_PREFIX . self::ARG_VERBOSE, $argLen) .
+                $argsSeparator . $descSeparator . 'verbose mode'
+            );
         }
 
         // default environment variables
@@ -327,22 +337,76 @@ class App
                 'must return instance of ' . IBuilder::class . ': ' . $configFile
             );
         } else {
-            $this->_echoError('not found ' . $configFile);
+            $this->_echoError('no shortcuts found, missing ' . $configFile);
         }
 
         return null;
     }
 
     private function handleShortcut(
-        CommandsCollection $commands, ShortcutsCollection $shortcuts
+        ShortcutDefinitionDTO $dtoShortcut, ShortcutsCollection $shortcuts
     ): void
     {
-        $console = $this->di->getConsoleServiceFactory()->create($commands->getEnv());
-        $shortcuts->enableRuntimeMode($console);
-        foreach ($shortcuts->resolveCallbacks($commands) as $command) {
-            if (!$console->execSTDOUT($command->command, $command->isEchoRequired())) {
-                break;
+        $console = $this->di->getConsoleServiceFactory()->create($dtoShortcut->getEnv());
+        /** @var CommandsCollection $commands */
+        $commands = $dtoShortcut->refMethod->invoke(
+            $shortcuts,
+            ...$this->_populateArgsWithValues($dtoShortcut, $console->args)
+        );
+        $aCommands = [];
+        foreach ($commands->asArray() as $command) {
+            if ($console->isVerboseMode || $command->echoCommand) {
+                $aCommands[] = 'echo -e ' . ConsoleService::composeEchoColored(
+                    escapeshellarg($command->command), ConsoleService::VERBOSE_COLOR
+                );
+            }
+            $aCommands[] = $command->command;
+        }
+        if ($aCommands) {
+            $console->execSTDOUT(implode(" &&\n", $aCommands), ignoreVerboseMode: true);
+        }
+    }
+
+    private function _populateArgsWithValues(
+        ShortcutDefinitionDTO $dtoShortcut, array $inputArguments
+    ): array
+    {
+        $values = [];
+
+        foreach ($dtoShortcut->getArguments() as $dtoArg) {
+            if (array_key_exists($dtoArg->name, $inputArguments)) {
+                $value = $inputArguments[$dtoArg->name];
+                $type = gettype($value);
+                if ($type === 'boolean') {
+                    $type = 'bool';
+                }
+                if ($type !== $dtoArg->type) {
+                    if ($dtoArg->type === 'array' && $type === 'string') {
+                        $value = [$value];
+                    } elseif($type === 'bool') { // argument was specified, but as flag, without value
+                        throw new UserFriendlyException(
+                            'Missing value in ' . InputDTO::ARG_PREFIX . $dtoArg->name
+                        );
+                    } else {
+                        throw new UserFriendlyException(sprintf(
+                            'Invalid value type in %s, expected %s, got %s',
+                            InputDTO::ARG_PREFIX . $dtoArg->name,
+                            $dtoArg->type,
+                            $type
+                        ));
+                    }
+                }
+                $values[$dtoArg->name] = $value;
+            } else {
+                if (!$dtoArg->hasDefaultValue()) {
+                    throw new UserFriendlyException(
+                        'Missing required argument ' . InputDTO::ARG_PREFIX . $dtoArg->name
+                    );
+                }
+                $values[$dtoArg->name] = $dtoArg->defaultValue;
             }
         }
+
+        return $values;
     }
 }

@@ -1,9 +1,9 @@
 <?php
 
-namespace Shortcuts\ICommand\CallbackWithArgs;
+namespace Shortcuts;
 
 #[\Attribute]
-class ArgDefinition
+class ShortcutArg
 {
     function __construct(public string $description) {}
 }

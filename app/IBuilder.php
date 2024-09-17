@@ -6,5 +6,5 @@ interface IBuilder
 {
     const CONFIG_FILE = 'shortcuts.php';
 
-    function build(): ShortcutsCollection;
+    function build(ShortcutsCollectionFactory $factory): ShortcutsCollection;
 }

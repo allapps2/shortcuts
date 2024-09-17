@@ -4,35 +4,40 @@ namespace Shortcuts;
 
 class ConsoleService
 {
-    private const GREEN = "\033[92m";
-    private const GREEN_BG = "\033[30;42m";
-    private const YELLOW_BG = "\033[30;43m";
-    private const RED_BG = "\033[30;41m";
-    private const RED = "\033[91m";
-    private const WHITE = "\033[97m";
-    private const YELLOW = "\033[93m";
+    const GREEN = "\033[92m";
+    const GREEN_BG = "\033[30;42m";
+    const YELLOW_BG = "\033[30;43m";
+    const RED_BG = "\033[30;41m";
+    const RED = "\033[91m";
+    const WHITE = "\033[97m";
+    const YELLOW = "\033[93m";
     private const COLOR_RESET = "\033[0m";
+
+    const VERBOSE_COLOR = self::YELLOW;
 
     private bool $wasCwdDisplayed = false;
     private ?string $cwd = null;
 
     function __construct(
         private readonly array $env,
-        public readonly array $args,
-        private readonly bool  $isVerboseMode
+        public readonly array  $args,
+        public readonly bool  $isVerboseMode
     ) {}
 
+    /**
+     * Outputs to STDOUT
+     */
     static function echo(string $msg, string $color = null): void
     {
-        echo (
-            isset($color)
-            ? (
-                $color .
-                str_replace("\n", self::COLOR_RESET . "\n" . $color, $msg) .
-                self::COLOR_RESET
-            )
-            : $msg
-        ) . "\n";
+        echo (isset($color) ? self::composeEchoColored($msg, $color) : $msg) . "\n";
+    }
+
+    static function composeEchoColored(string $msg, string $color): string
+    {
+        return
+            $color .
+            str_replace("\n", self::COLOR_RESET . "\n" . $color, $msg) .
+            self::COLOR_RESET;
     }
 
     function setCwd(string $cwd): void
@@ -46,12 +51,15 @@ class ConsoleService
     private function _echoCommandInVerboseMode(string $command): void
     {
         if (!$this->wasCwdDisplayed) {
-            self::echo('working dir: ' . ($this->cwd ?: getcwd()), self::YELLOW);
+            self::echo('working dir: ' . ($this->cwd ?: getcwd()), self::VERBOSE_COLOR);
             $this->wasCwdDisplayed = true;
         }
-        self::echo($command, self::YELLOW);
+        self::echo($command, self::VERBOSE_COLOR);
     }
 
+    /**
+     * Executes and returns output
+     */
     function exec(string $command): false|string
     {
         if ($this->isVerboseMode) {
@@ -82,12 +90,13 @@ class ConsoleService
         return $output;
     }
 
-    function execSTDOUT(string $command, bool $echoCommand = false): bool
+    /**
+     * Executes and outputs to STDOUT
+     */
+    function execSTDOUT(string $command, bool $ignoreVerboseMode = false): bool
     {
-        if ($this->isVerboseMode) {
+        if ($this->isVerboseMode && !$ignoreVerboseMode) {
             $this->_echoCommandInVerboseMode($command);
-        } elseif ($echoCommand) {
-            self::echo($command);
         }
 
         $process = proc_open(

@@ -5,65 +5,35 @@ namespace Shortcuts;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionObject;
-use Shortcuts\ICommand\CallbackWithArgs;
-use Shortcuts\ICommand\CommandsCollection;
-use Shortcuts\ICommand\CommandWithoutArgs;
-use Shortcuts\ICommand\WorkingDir;
+use Shortcuts\Command\CommandsCollection;
+use Shortcuts\Shortcut\ShortcutDefinitionCollection;
+use Shortcuts\Shortcut\ShortcutDefinitionDTO;
 
 abstract class ShortcutsCollection
 {
-    private readonly ConsoleService $console;
-    private array $availableShortcuts;
+    private ShortcutDefinitionCollection $availableShortcuts;
 
-    function onAfterConstruct(InjectablesContainer $di): void {}
-    function onCommandsCompose(string $shortcut, CommandsCollection $commands): void {}
+    function __construct(protected InjectablesContainer $di) {}
 
-    function enableRuntimeMode(ConsoleService $console): void
-    {
-        $this->console = $console;
-    }
+    function _onShortcutDefinitionCreate(ShortcutDefinitionDTO $dtoShortcut): void {}
 
-    /**
-     * @return CommandWithoutArgs[]
-     */
-    function resolveCallbacks(CommandsCollection $commands): \Generator
-    {
-        if (!isset($this->console)) {
-            throw new \Exception('Runtime is not enabled yet');
-        }
-
-        foreach ($commands->asArray() as $command) {
-            if ($command instanceof CallbackWithArgs) {
-                $_commands = (new CommandsCollection);
-                $command->composer->call(
-                    $this,
-                    $_commands,
-                    ...$command->populateArgsWithValues($this->console->args)
-                );
-                yield from $this->resolveCallbacks($_commands);
-            } elseif ($command instanceof WorkingDir) {
-                $this->console->setCwd($command->dir);
-            } elseif ($command instanceof CommandWithoutArgs) {
-                yield $command;
-            } else {
-                throw new \Exception('Unsupported command type: ' . get_class($command));
-            }
-        }
-    }
-
-    function getAvailableShortcuts(bool $ownMethodsOnly = false): array
+    function getAvailableShortcuts(): ShortcutDefinitionCollection
     {
         if (!isset($this->availableShortcuts)) {
+            $this->availableShortcuts = new ShortcutDefinitionCollection();
+
             $refThis = new ReflectionObject($this);
             $methods = $refThis->getMethods(ReflectionMethod::IS_PUBLIC);
             $forbiddenShortcutNames = array_map(
                 fn(ReflectionMethod $refMethod) => $refMethod->getName(),
                 (new ReflectionClass(self::class))->getMethods()
             );
-            $forbiddenShortcutNames[] = '__construct';
             foreach ($methods as $refMethod) {
                 $shortcut = $refMethod->getName();
-                if (in_array($shortcut, $forbiddenShortcutNames, true)) {
+                if (
+                    $shortcut[0] === '_' ||
+                    in_array($shortcut, $forbiddenShortcutNames, true)
+                ) {
                     continue;
                 }
 
@@ -75,19 +45,23 @@ abstract class ShortcutsCollection
                         ? $refThis->getFileName()
                         : $refThis->getName();
                     throw new \Exception(
-                        "All public methods of {$className} are shortcuts " .
-                        "and must return " . CommandsCollection::class .
+                        "All public methods of {$className} not starting with _ " .
+                        "are shortcuts and must return " . CommandsCollection::class .
                         ", please fix {$shortcut}()"
                     );
                 }
 
-                if ($commands = $refMethod->invoke($this)) { // null means to skip
-                    $this->availableShortcuts[$shortcut] = $commands;
-                    $this->onCommandsCompose($shortcut, $commands);
+                $dtoShortcut = new ShortcutDefinitionDTO($refMethod);
+                if ($attrs = $refMethod->getAttributes(Shortcut::class)) {
+                    /** @var Shortcut $attrDef */
+                    $attrDef = $attrs[0]->newInstance();
+                    $dtoShortcut->setDescription($attrDef->description);
                 }
+                $this->_onShortcutDefinitionCreate($dtoShortcut);
+                $this->availableShortcuts->add($dtoShortcut);
             }
 
-            ksort($this->availableShortcuts);
+            $this->availableShortcuts->sort();
         }
 
         return $this->availableShortcuts;
