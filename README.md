@@ -20,7 +20,8 @@ into the host application brings.
 ### download
 
 download `short.phar` from https://github.com/allapps2/shortcuts/blob/main/bin/short.phar
-and put it into your project (usually the folder where you will create shortcuts.php).
+and put it into your project (for example to .for-auto-completion folder to be used
+by your IDE like PhpStorm for code auto-completion).
 
 ### global install
 
@@ -48,8 +49,10 @@ use Shortcuts\ShortcutArg;
 use Shortcuts\ShortcutsCollection;
 use Shortcuts\ShortcutsCollectionFactory;
 
-class Shortcuts extends ShortcutsCollection {
-    function shortcut1(): CommandsCollection {
+class Shortcuts extends ShortcutsCollection
+{
+    function shortcut1(): CommandsCollection
+    {
         return (new CommandsCollection)->add('long command1');
     }
 
@@ -58,7 +61,8 @@ class Shortcuts extends ShortcutsCollection {
         string $requiredArgument,
         #[ShortcutArg(description: 'Optional argument')]
         string $optionalArgument = 'default value'
-    ): CommandsCollection {
+    ): CommandsCollection
+    {
         return (new CommandsCollection)
             ->add('long command2 ' . $requiredArgument)
             ->add('long command3 ' . $optionalArgument);
@@ -71,10 +75,6 @@ return new class implements IBuilder {
     }
 };
 ```
-
-To simplify `shortcuts.php` editing you can put `short.phar` into your project
-(usually into the folder with `shortcuts.php`) and your IDE will be able to provide code
-completion (at least PhpStorm can do it).
 
 ## for contributors
 
