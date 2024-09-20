@@ -5,36 +5,41 @@ namespace Shortcuts;
 readonly class InputDTO
 {
     const ARG_PREFIX = '--';
+    private const ARG_REGEX = '/^' . self::ARG_PREFIX . '([\w]+)(=?)(.*)$/';
 
     public array $namedArguments;
+    public array $namedArgumentsForMe;
 
     function __construct(
         public ?string   $shortcut = null,
+        array            $argumentsForMe = [],
         public array     $arguments = [],
         public ?IBuilder $builder = null
     ) {
-        $this->namedArguments = $this->_parseAndEscapeArguments();
+        $this->namedArgumentsForMe = $this->_parseArguments($argumentsForMe);
+        $this->namedArguments = $this->_parseArguments($this->arguments, escape: true);
     }
 
-    private function _parseAndEscapeArguments(): array
+    private function _parseArguments(array $args, bool $escape = false): array
     {
-        $argsEscaped = [];
-        $regex = '/^' . self::ARG_PREFIX . '([\w]+)(=?)(.*)$/';
-        foreach ($this->arguments as $arg) {
-            if (preg_match($regex, $arg, $matches)) {
+        $parsedArgs = [];
+        foreach ($args as $arg) {
+            if (preg_match(self::ARG_REGEX, $arg, $matches)) {
                 $name = $matches[1];
-                $value = $matches[2] === '=' ? escapeshellarg($matches[3]) : true;
-                if (isset($argsEscaped[$name])) {
-                    if (!is_array($argsEscaped[$name])) {
-                        $argsEscaped[$name] = [$argsEscaped[$name]];
+                $value = $matches[2] === '='
+                    ? ($escape ? escapeshellarg($matches[3]) : $matches[3])
+                    : true;
+                if (isset($parsedArgs[$name])) {
+                    if (!is_array($parsedArgs[$name])) {
+                        $parsedArgs[$name] = [$parsedArgs[$name]];
                     }
-                    $argsEscaped[$name][] = $value;
+                    $parsedArgs[$name][] = $value;
                 } else {
-                    $argsEscaped[$name] = $value;
+                    $parsedArgs[$name] = $value;
                 }
             }
         }
 
-        return $argsEscaped;
+        return $parsedArgs;
     }
 }

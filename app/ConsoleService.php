@@ -19,9 +19,9 @@ class ConsoleService
     private ?string $cwd = null;
 
     function __construct(
-        private readonly array $env,
-        public readonly array  $args,
-        public readonly bool  $isVerboseMode
+        private readonly array   $env,
+        public readonly InputDTO $dtoInput,
+        public readonly bool     $isVerboseMode
     ) {}
 
     /**

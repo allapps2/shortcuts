@@ -23,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 1;
     const VERSION_MINOR = 4;
-    const VERSION_PATCH = 0;
+    const VERSION_PATCH = 1;
 
     const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
     const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
@@ -39,6 +39,7 @@ class App
         self::JSON_SUBCOMMAND_VERSION,
     ];
 
+    const ARGS_FOR_ME_TITLE = 'special arguments';
     const ARG_VERBOSE = 'vvv';
 
     private InjectablesContainer $di;
@@ -70,7 +71,9 @@ class App
             if (!$dtoInput->shortcut) {
                 $this->_echoAppNameIfNoEchoed();
                 ConsoleService::echo(
-                    'Usage: '. basename($argv[0]) . ' [<shortcut> [<arguments>]]'
+                    'Usage: '. basename($argv[0]) .
+                    ' [<' . self::ARGS_FOR_ME_TITLE . '> ' . InputDTO::ARG_PREFIX . ']' .
+                    ' [<shortcut> [<arguments>]]'
                 );
                 $this->_echoShortcuts($shortcuts);
                 return;
@@ -273,7 +276,9 @@ class App
                         $arg .= $descriptionSeparator . 'multiple values';
                         break;
                     case ArgDefinitionDTO::TYPE_VARIADIC:
-                        $arg .= $descriptionSeparator . 'all arguments are passed as is';
+                        if (!isset($dtoArg->description)) {
+                            $arg .= $descriptionSeparator . 'all arguments are passed as is';
+                        }
                         break;
                     default:
                         throw new \Exception(
@@ -294,9 +299,9 @@ class App
             }
         }
 
-        // common arguments
+        // arguments for me
         if (!$showShortcutsOnly) {
-            ConsoleService::echo('common arguments:');
+            ConsoleService::echo(self::ARGS_FOR_ME_TITLE . ':');
             ConsoleService::echo(
                 $prefix . str_pad(InputDTO::ARG_PREFIX . self::ARG_VERBOSE, $argLen) .
                 $argsSeparator . $descSeparator . 'verbose mode'
@@ -315,23 +320,34 @@ class App
 
     private function _parseInput(array $argv): ?InputDTO
     {
-        $shortcut = trim($argv[1] ?? '') ?: null;
+        // args for me
+        $_argv = array_values($argv);
+        if ($i = array_search(InputDTO::ARG_PREFIX, $_argv, true)) {
+            $argsForMe = array_splice($_argv, 1, $i);
+            array_pop($argsForMe);
+        } else {
+            $argsForMe = [];
+        }
+
+        // args for config
+        $shortcut = trim($_argv[1] ?? '') ?: null;
         if ($shortcut) {
-            $args = array_map('trim', array_slice($argv, 2));
+            $args = array_map('trim', array_slice($_argv, 2));
             if (in_array($shortcut, self::RESERVED_SHORTCUTS)) {
-                return new InputDTO($shortcut, $args);
+                return new InputDTO($shortcut, $argsForMe, $args);
             }
         } else {
             $args = [];
         }
 
+        // config
         $configFile = getcwd() . '/' . IBuilder::CONFIG_FILE;
         if (is_file($configFile)) {
             ob_start(); // prevent file content output in case of invalid php or errors
             $builder = @require($configFile);
             ob_end_clean();
             if ($builder instanceof IBuilder) {
-                return new InputDTO($shortcut, $args, $builder);
+                return new InputDTO($shortcut, $argsForMe, $args, $builder);
             }
             $this->_echoError(
                 'must return instance of ' . IBuilder::class . ': ' . $configFile
@@ -351,7 +367,7 @@ class App
         /** @var CommandsCollection $commands */
         $commands = $dtoShortcut->refMethod->invoke(
             $shortcuts,
-            ...$this->_populateArgsWithValues($dtoShortcut, $console->args)
+            ...$this->_populateArgsWithValues($dtoShortcut, $console->dtoInput)
         );
         $aCommands = [];
         foreach ($commands->asArray() as $command) {
@@ -368,14 +384,16 @@ class App
     }
 
     private function _populateArgsWithValues(
-        ShortcutDefinitionDTO $dtoShortcut, array $inputArguments
+        ShortcutDefinitionDTO $dtoShortcut, InputDTO $dtoInput
     ): array
     {
         $values = [];
 
         foreach ($dtoShortcut->getArguments() as $dtoArg) {
-            if (array_key_exists($dtoArg->name, $inputArguments)) {
-                $value = $inputArguments[$dtoArg->name];
+            if ($dtoArg->type === ArgDefinitionDTO::TYPE_VARIADIC) {
+                $values[] = implode(' ', $dtoInput->arguments);
+            } elseif (array_key_exists($dtoArg->name, $dtoInput->namedArguments)) {
+                $value = $dtoInput->namedArguments[$dtoArg->name];
                 $type = gettype($value);
                 if ($type === 'boolean') {
                     $type = 'bool';

@@ -8,11 +8,11 @@ readonly class ConsoleServiceFactory implements IInjectable
 
     function __construct(private InputDTO $dtoInput)
     {
-        $this->forceEcho = isset($dtoInput->namedArguments[App::ARG_VERBOSE]);
+        $this->forceEcho = isset($dtoInput->namedArgumentsForMe[App::ARG_VERBOSE]);
     }
 
     function create(array $env = []): ConsoleService
     {
-        return new ConsoleService($env, $this->dtoInput->namedArguments, $this->forceEcho);
+        return new ConsoleService($env, $this->dtoInput, $this->forceEcho);
     }
 }
