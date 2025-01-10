@@ -27,11 +27,11 @@ by your IDE like PhpStorm for code auto-completion).
 
 to make `sc` alias available everywhere:
 
-`sudo php short.phar setup-shortcuts-global`
+`sudo php short.phar install-global`
 
 or any custom alias:
 
-`sudo php short.phar setup-shortcuts-global myalias`
+`sudo php short.phar install-global myalias`
 
 ## usage
 
@@ -81,7 +81,7 @@ return new class implements IBuilder {
 clone the repository and create `sc` alias that points to index.php instead of
 short.phar:
 
-`sudo php </path/to/clone>/app/index.php setup-shortcuts-global`
+`sudo php </path/to/clone>/app/index.php install-global`
 
 This way `sc` will run your development version instead of the distributed one to
 let you test your changes.

@@ -13,8 +13,6 @@ abstract class ShortcutsCollection
 {
     private ShortcutDefinitionCollection $availableShortcuts;
 
-    function __construct(protected InjectablesContainer $di) {}
-
     function _onShortcutDefinitionCreate(ShortcutDefinitionDTO $dtoShortcut): void {}
 
     function getAvailableShortcuts(): ShortcutDefinitionCollection

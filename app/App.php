@@ -21,12 +21,12 @@ class App
      */
     const NAME = 'shortcuts';
 
-    const VERSION_MAJOR = 1;
-    const VERSION_MINOR = 4;
-    const VERSION_PATCH = 1;
+    const VERSION_MAJOR = 2;
+    const VERSION_MINOR = 0;
+    const VERSION_PATCH = 0;
 
-    const APP_SHORTCUT_PHAR = 'compile-shortcuts-phar';
-    const APP_SHORTCUT_SETUP = 'setup-shortcuts-global';
+    const APP_SHORTCUT_PHAR = 'compile-phar';
+    const APP_SHORTCUT_SETUP = 'install-global';
     const APP_SHORTCUT_JSON = 'json';
     const RESERVED_SHORTCUTS = [
         self::APP_SHORTCUT_PHAR,
@@ -353,7 +353,10 @@ class App
                 'must return instance of ' . IBuilder::class . ': ' . $configFile
             );
         } else {
-            $this->_echoError('no shortcuts found, missing ' . $configFile);
+            $this->_echoError(
+                'no shortcuts found, current directory does not contain configuration file ' .
+                $configFile
+            );
         }
 
         return null;

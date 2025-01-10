@@ -4,7 +4,8 @@ namespace Shortcuts;
 
 class InjectablesContainer
 {
-    const INJECTABLES = [ConsoleServiceFactory::class];
+    private const INJECTABLES = [ConsoleServiceFactory::class, InputDTO::class];
+    private const DEPENDENCY_METHOD = '__construct';
 
     private readonly InputDTO $dtoInput;
 
@@ -19,34 +20,38 @@ class InjectablesContainer
         return $o ?? $o = new ConsoleServiceFactory($this->dtoInput);
     }
 
-    function injectInto(object $object): void
+    function detectInjections(string $className): array
     {
         $params = [];
-        $methodName = 'injects';
-        $refMethod = new \ReflectionMethod($object, $methodName);
+        if (!method_exists($className, self::DEPENDENCY_METHOD)) {
+            return $params;
+        }
+
+        $refMethod = new \ReflectionMethod($className, self::DEPENDENCY_METHOD);
         foreach ($refMethod->getParameters() as $refParam) {
             $refType = $refParam->getType();
             if (!($refType instanceof \ReflectionNamedType) || $refType->isBuiltin()) {
                 throw new \Exception(
                     'Expected class/interface type hint for every parameter in ' .
-                    get_class($object) . '::' . $methodName
+                    $className . '::' . self::DEPENDENCY_METHOD . '()'
                 );
             }
-            $className = $refType->getName();
-            if (!in_array($className, self::INJECTABLES, true)) {
+            $paramClassName = $refType->getName();
+            if (!in_array($paramClassName, self::INJECTABLES, true)) {
                 throw new \Exception(
-                    'Unknown service: ' . $className . ', available: ' .
+                    'Unknown service: ' . $paramClassName . ', available: ' .
                     implode(', ', self::INJECTABLES)
                 );
             }
-            $params[] = match ($className) {
+            $params[] = match ($paramClassName) {
                 ConsoleServiceFactory::class => $this->getConsoleServiceFactory(),
+                InputDTO::class => $this->dtoInput,
                 default => throw new \Exception(
-                    'Missing service creating for ' . $className
+                    'Missing service creating for ' . $paramClassName
                 ),
             };
         }
 
-        $object->{$methodName}(...$params);
+        return $params;
     }
 }

@@ -8,6 +8,8 @@ readonly class ShortcutsCollectionFactory
 
     function create(string $classShortcutsCollection): ShortcutsCollection
     {
-        return new $classShortcutsCollection($this->di);
+        return new $classShortcutsCollection(
+            ...$this->di->detectInjections($classShortcutsCollection)
+        );
     }
 }
