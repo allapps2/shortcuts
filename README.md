@@ -78,13 +78,12 @@ return new class implements IBuilder {
 
 ## for contributors
 
-clone the repository and create `sc` alias that points to index.php instead of
+Clone the repository and create `sc` alias that points to index.php instead of
 short.phar:
 
 `sudo php </path/to/clone>/app/index.php install-global`
 
-This way `sc` will run your development version instead of the distributed one to
-let you test your changes.
+This way `sc` will run your development version to let you test your changes.
 
 ### recompile short.phar
 
