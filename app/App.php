@@ -354,8 +354,9 @@ class App
             );
         } else {
             $this->_echoError(
-                'no shortcuts found, current directory does not contain configuration file ' .
-                $configFile
+                'no shortcuts found, missing configuration file ' .
+                basename($configFile) . ' in current directory ' .
+                '(' . dirname($configFile) . ')'
             );
         }
 
