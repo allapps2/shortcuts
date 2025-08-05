@@ -3,6 +3,7 @@
 namespace Shortcuts\Shortcut;
 
 use ReflectionMethod;
+use Shortcuts\ConsoleService;
 use Shortcuts\InputDTO;
 use Shortcuts\ShortcutArg;
 use Shortcuts\ShortcutArg\ArgDefinitionDTO;
@@ -41,7 +42,7 @@ class ShortcutDefinitionDTO
             $this->args = new ArgDefinitionsCollection();
 
             $params = $this->refMethod->getParameters();
-            $supportedTypes = ['string', 'bool', 'array'];
+            $supportedTypes = ['string', 'bool', 'array', ArgDefinitionDTO::TYPE_ENUM];
 
             $boolException = "Fix definition of %s argument, bool arguments " .
                 "must have default value FALSE, because it is used as optional flag";
@@ -49,23 +50,22 @@ class ShortcutDefinitionDTO
             foreach ($params as $param) {
                 if ($param->isVariadic()) {
                     $dtoArg = new ArgDefinitionDTO('', ArgDefinitionDTO::TYPE_VARIADIC);
-                } else {
-                    if (!$param->getType()) {
-                        throw new \Exception(
-                            "Missing type hint for parameter '{$param->getName()}' in " . (
-                                $this->refMethod->getFileName() . ':' .
-                                $this->refMethod->getStartLine()
-                            )
-                        );
-                    }
-
+                } elseif ($paramType = $param->getType()) {
                     $paramName = $param->getName();
-                    $typeName = $param->getType()->getName();
+                    $typeName = $paramType->isBuiltin()
+                        ? $paramType->getName()
+                        : (
+                            (new \ReflectionClass($paramType->getName()))->isEnum()
+                            ? ArgDefinitionDTO::TYPE_ENUM
+                            : null
+                        );
                     if (!in_array($typeName, $supportedTypes, true)) {
                         throw new \Exception(
-                            "Unsupported type {$typeName} for argument " .
-                            InputDTO::ARG_PREFIX . "{$paramName}, supported types: " .
+                            "Unsupported argument type for shortcut " .
+                            "{$this->name}({$paramType->getName()} \${$paramName}), " .
+                            "supported types: " .
                             "string (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
+                            "enum (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
                             "bool (optional flag, " . InputDTO::ARG_PREFIX . "{$paramName}), " .
                             "array (" . InputDTO::ARG_PREFIX . "{$paramName}=<value1> " .
                             InputDTO::ARG_PREFIX . "{$paramName}=<value2> ...)"
@@ -73,6 +73,9 @@ class ShortcutDefinitionDTO
                     }
 
                     $dtoArg = new ArgDefinitionDTO($paramName, $typeName);
+                    if ($typeName === ArgDefinitionDTO::TYPE_ENUM) {
+                        $dtoArg->setEnumClass($paramType->getName());
+                    }
                     if ($param->isDefaultValueAvailable()) {
                         $default = $param->getDefaultValue();
                         if ($typeName === 'bool' && $default !== false) {
@@ -87,6 +90,9 @@ class ShortcutDefinitionDTO
                                 InputDTO::ARG_PREFIX . $paramName
                             ));
                         }
+                        if ($typeName === ArgDefinitionDTO::TYPE_ENUM) {
+                            $default = $default->value;
+                        }
                         $dtoArg->setDefaultValue($default);
                     } else {
                         if ($typeName === 'bool') {
@@ -97,6 +103,13 @@ class ShortcutDefinitionDTO
                             );
                         }
                     }
+                } else {
+                    throw new \Exception(
+                        "Missing type hint for parameter '{$param->getName()}' in " . (
+                            $this->refMethod->getFileName() . ':' .
+                            $this->refMethod->getStartLine()
+                        )
+                    );
                 }
 
                 if ($attrs = $param->getAttributes(ShortcutArg::class)) {

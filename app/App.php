@@ -22,7 +22,7 @@ class App
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 2;
-    const VERSION_MINOR = 0;
+    const VERSION_MINOR = 1;
     const VERSION_PATCH = 0;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
@@ -41,6 +41,8 @@ class App
 
     const ARGS_FOR_ME_TITLE = 'special arguments';
     const ARG_VERBOSE = 'vvv';
+
+    const MSG_MISSING_VALUE = 'Missing value in ' . InputDTO::ARG_PREFIX . '%s';
 
     private InjectablesContainer $di;
 
@@ -265,11 +267,21 @@ class App
                         $arg .= $descriptionSeparator . 'optional flag';
                         break;
                     case 'string':
+                    case ArgDefinitionDTO::TYPE_ENUM:
                         if ($dtoArg->hasDefaultValue()) {
                             $arg .= $descriptionSeparator . 'optional';
                             if (!empty($dtoArg->defaultValue)) {
                                 $arg .= ', default: ' . $dtoArg->defaultValue;
                             }
+                            if ($dtoArg->type === ArgDefinitionDTO::TYPE_ENUM) {
+                                $arg .= '; ';
+                            }
+                        }
+                        if ($dtoArg->type === ArgDefinitionDTO::TYPE_ENUM) {
+                            $arg .= 'possible values: ' . implode(', ', array_map(
+                                fn($case) => $case->value,
+                                ($dtoArg->getEnumClass())::cases()
+                            ));
                         }
                         break;
                     case 'array':
@@ -398,24 +410,55 @@ class App
                 $values[] = implode(' ', $dtoInput->arguments);
             } elseif (array_key_exists($dtoArg->name, $dtoInput->namedArguments)) {
                 $value = $dtoInput->namedArguments[$dtoArg->name];
-                $type = gettype($value);
-                if ($type === 'boolean') {
-                    $type = 'bool';
-                }
-                if ($type !== $dtoArg->type) {
-                    if ($dtoArg->type === 'array' && $type === 'string') {
-                        $value = [$value];
-                    } elseif($type === 'bool') { // argument was specified, but as flag, without value
+                if ($dtoArg->type === ArgDefinitionDTO::TYPE_ENUM) {
+                    if (empty($value)) {
                         throw new UserFriendlyException(
-                            'Missing value in ' . InputDTO::ARG_PREFIX . $dtoArg->name
+                            sprintf(self::MSG_MISSING_VALUE, $dtoArg->name)
                         );
+                    }
+                    $enumClass = $dtoArg->getEnumClass();
+                    if ($_value = ($enumClass)::tryFrom($value)) {
+                        $value = $_value;
                     } else {
                         throw new UserFriendlyException(sprintf(
-                            'Invalid value type in %s, expected %s, got %s',
+                            'Invalid %s value "%s", expected one of: %s',
                             InputDTO::ARG_PREFIX . $dtoArg->name,
-                            $dtoArg->type,
-                            $type
+                            $value,
+                            implode(', ', array_map(
+                                fn($case) => $case->value, ($enumClass)::cases()
+                            ))
                         ));
+                    }
+                } else {
+                    $type = gettype($value);
+                    if ($type === 'boolean') {
+                        $type = 'bool';
+                    }
+                    if ($type !== $dtoArg->type) {
+                        if ($dtoArg->type === 'array' && $type === 'string') {
+                            $value = [$value];
+                        } elseif ($type === 'bool') { // argument was specified, but as flag, without value
+                            throw new UserFriendlyException(
+                                sprintf(self::MSG_MISSING_VALUE, $dtoArg->name)
+                            );
+                        } else {
+                            throw new UserFriendlyException(sprintf(
+                                'Invalid value type in %s, expected %s, got %s',
+                                InputDTO::ARG_PREFIX . $dtoArg->name,
+                                $dtoArg->type,
+                                $type
+                            ));
+                        }
+                    }
+
+                    // the value is usually used for inserting into console command,
+                    // so we need to make it safe for such usage
+                    if ($dtoArg->type === 'string') {
+                        $value = escapeshellarg($value);
+                    } elseif($dtoArg->type === 'array') {
+                        foreach ($value as &$item) {
+                            $item = escapeshellarg($item);
+                        }
                     }
                 }
                 $values[$dtoArg->name] = $value;

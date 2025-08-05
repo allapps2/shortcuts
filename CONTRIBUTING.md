@@ -3,7 +3,7 @@ short.phar:
 
 `sudo php </path/to/clone>/app/index.php install-global`
 
-This way `sc` will run your development version to let you test your changes.
+This way `sc` will run your development version to let you test your changes immediately.
 
 ### recompile short.phar
 

@@ -7,8 +7,8 @@ accessibility of **code-completion**, finding of **usage**, using of your applic
 the whole range of PHP possibilities and your IDE features.
 
 The disadvantage of this is that the configuration is more verbose compared to YAML and
-other simple formats, but it is negligible compared to the benefits that integration
-into the host application brings.
+other simple formats, but it is negligible compared to the benefits that the
+integration into the host application brings.
 
 ## installation
 

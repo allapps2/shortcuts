@@ -2,17 +2,23 @@
 
 namespace Shortcuts\ShortcutArg;
 
+use BackedEnum;
+
 class ArgDefinitionDTO
 {
     const TYPE_VARIADIC = 'variadic';
+    const TYPE_ENUM = 'enum';
 
     public readonly string|bool|array|null $defaultValue;
     public readonly string $description;
     private bool $hasDefaultValue = false;
+    private string $enumClass;
 
     function __construct(readonly public string $name, readonly public string $type)
     {
-        if (!in_array($type, ['string', 'bool', 'array', self::TYPE_VARIADIC])) {
+        if (!in_array(
+            $type, ['string', 'bool', 'array', self::TYPE_VARIADIC, self::TYPE_ENUM]
+        )) {
             throw new \Exception("Unsupported type '{$type}' for argument '{$this->name}'");
         }
     }
@@ -31,5 +37,20 @@ class ArgDefinitionDTO
     function setDescription(string $description): void
     {
         $this->description = $description;
+    }
+
+    function setEnumClass(string $enumClass): void
+    {
+        if ($this->type !== self::TYPE_ENUM) {
+            throw new \Exception(
+                "Cannot set enum for argument '{$this->name}' of type '{$this->type}'"
+            );
+        }
+        $this->enumClass = $enumClass;
+    }
+
+    function getEnumClass(): ?string
+    {
+        return $this->enumClass ?? null;
     }
 }

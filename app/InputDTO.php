@@ -17,18 +17,16 @@ readonly class InputDTO
         public ?IBuilder $builder = null
     ) {
         $this->namedArgumentsForMe = $this->_parseArguments($argumentsForMe);
-        $this->namedArguments = $this->_parseArguments($this->arguments, escape: true);
+        $this->namedArguments = $this->_parseArguments($this->arguments);
     }
 
-    private function _parseArguments(array $args, bool $escape = false): array
+    private function _parseArguments(array $args): array
     {
         $parsedArgs = [];
         foreach ($args as $arg) {
             if (preg_match(self::ARG_REGEX, $arg, $matches)) {
                 $name = $matches[1];
-                $value = $matches[2] === '='
-                    ? ($escape ? escapeshellarg($matches[3]) : $matches[3])
-                    : true;
+                $value = $matches[2] === '=' ? $matches[3] : true;
                 if (isset($parsedArgs[$name])) {
                     if (!is_array($parsedArgs[$name])) {
                         $parsedArgs[$name] = [$parsedArgs[$name]];
