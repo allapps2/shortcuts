@@ -399,15 +399,24 @@ class App
         }
     }
 
+    /**
+     * argument types eligible to be filled in positionally (without --name=) when
+     * their name is omitted; bool (flags) and array (repeatable --name=value) are
+     * ambiguous as bare positional tokens, so they always require --name
+     */
+    const POSITIONALLY_FILLABLE_TYPES = ['string', ArgDefinitionDTO::TYPE_ENUM];
+
     private function _populateArgsWithValues(
         ShortcutDefinitionDTO $dtoShortcut, InputDTO $dtoInput
     ): array
     {
         $values = [];
+        $positionalQueue = $dtoInput->positionalArguments;
 
         foreach ($dtoShortcut->getArguments() as $dtoArg) {
             if ($dtoArg->type === ArgDefinitionDTO::TYPE_VARIADIC) {
                 $values[] = implode(' ', $dtoInput->arguments);
+                $positionalQueue = [];
             } elseif (array_key_exists($dtoArg->name, $dtoInput->namedArguments)) {
                 $value = $dtoInput->namedArguments[$dtoArg->name];
                 if ($dtoArg->type === ArgDefinitionDTO::TYPE_ENUM) {
@@ -416,19 +425,7 @@ class App
                             sprintf(self::MSG_MISSING_VALUE, $dtoArg->name)
                         );
                     }
-                    $enumClass = $dtoArg->getEnumClass();
-                    if ($_value = ($enumClass)::tryFrom($value)) {
-                        $value = $_value;
-                    } else {
-                        throw new UserFriendlyException(sprintf(
-                            'Invalid %s value "%s", expected one of: %s',
-                            InputDTO::ARG_PREFIX . $dtoArg->name,
-                            $value,
-                            implode(', ', array_map(
-                                fn($case) => $case->value, ($enumClass)::cases()
-                            ))
-                        ));
-                    }
+                    $value = $this->_resolveEnumValue($dtoArg, $value);
                 } else {
                     $type = gettype($value);
                     if ($type === 'boolean') {
@@ -462,6 +459,14 @@ class App
                     }
                 }
                 $values[$dtoArg->name] = $value;
+            } elseif (
+                $positionalQueue &&
+                in_array($dtoArg->type, self::POSITIONALLY_FILLABLE_TYPES, true)
+            ) {
+                $value = array_shift($positionalQueue);
+                $values[$dtoArg->name] = $dtoArg->type === ArgDefinitionDTO::TYPE_ENUM
+                    ? $this->_resolveEnumValue($dtoArg, $value)
+                    : escapeshellarg($value);
             } else {
                 if (!$dtoArg->hasDefaultValue()) {
                     throw new UserFriendlyException(
@@ -473,5 +478,22 @@ class App
         }
 
         return $values;
+    }
+
+    private function _resolveEnumValue(
+        ArgDefinitionDTO $dtoArg, string $value
+    ): \BackedEnum
+    {
+        $enumClass = $dtoArg->getEnumClass();
+        if ($enumCase = ($enumClass)::tryFrom($value)) {
+            return $enumCase;
+        }
+
+        throw new UserFriendlyException(sprintf(
+            'Invalid %s value "%s", expected one of: %s',
+            InputDTO::ARG_PREFIX . $dtoArg->name,
+            $value,
+            implode(', ', array_map(fn($case) => $case->value, ($enumClass)::cases()))
+        ));
     }
 }

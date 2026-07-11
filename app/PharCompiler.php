@@ -41,6 +41,10 @@ class PharCompiler
             ROOT_DIR
         );
 
+        $phar->setMetadata([
+            'version' => App::VERSION_MAJOR . '.' . App::VERSION_MINOR . '.' . App::VERSION_PATCH,
+            'name'    => App::NAME,
+        ]);
         $phar->setStub($phar->createDefaultStub('app/index.php'));
         $phar->stopBuffering();
 

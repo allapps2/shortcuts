@@ -29,15 +29,30 @@ to make `sc` alias available everywhere:
 
 `sudo php short.phar install-global`
 
-or any custom alias:
+or as any custom alias:
 
-`sudo php short.phar install-global myalias`
+`sudo php short.phar install-global <myalias>`
 
 ## usage
 
 in folder with shortcuts.php:
 
 `sc [<shortcut> [<arguments>]]`
+
+### arguments
+
+arguments can be passed named, `--name=value` (or `--name` alone for `bool` flags),
+in any order:
+
+`sc shortcut2 --optionalArgument=value --requiredArgument=value`
+
+arguments can also be passed positionally, matching the order they're declared:
+
+`sc shortcut2 value1 value2`
+
+Named and positional arguments can be mixed; a named argument always takes precedence
+over a positional one for the same parameter. `bool` flags and `array` arguments must
+always be passed named, since a bare value would be ambiguous for them.
 
 ### example of shortcuts.php:
 

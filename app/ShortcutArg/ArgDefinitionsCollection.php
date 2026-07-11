@@ -20,8 +20,6 @@ class ArgDefinitionsCollection implements IteratorAggregate
      */
     function getIterator(): Traversable
     {
-        ksort($this->items);
-
         return new ArrayIterator($this->items);
     }
 

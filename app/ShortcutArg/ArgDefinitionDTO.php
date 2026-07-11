@@ -39,6 +39,9 @@ class ArgDefinitionDTO
         $this->description = $description;
     }
 
+    /**
+     * @param class-string<BackedEnum> $enumClass
+     */
     function setEnumClass(string $enumClass): void
     {
         if ($this->type !== self::TYPE_ENUM) {
@@ -46,9 +49,18 @@ class ArgDefinitionDTO
                 "Cannot set enum for argument '{$this->name}' of type '{$this->type}'"
             );
         }
+        if (!is_a($enumClass, BackedEnum::class, true)) {
+            throw new \Exception(
+                "Argument '{$this->name}' ({$enumClass}) must be a backed enum " .
+                "(implements " . BackedEnum::class . "), plain enums are not supported"
+            );
+        }
         $this->enumClass = $enumClass;
     }
 
+    /**
+     * @return class-string<BackedEnum>|null
+     */
     function getEnumClass(): ?string
     {
         return $this->enumClass ?? null;

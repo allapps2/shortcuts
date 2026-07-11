@@ -10,17 +10,23 @@ readonly class InputDTO
     public array $namedArguments;
     public array $namedArgumentsForMe;
 
+    // arguments that don't match --name(=value) syntax, in the order they were passed
+    public array $positionalArguments;
+
     function __construct(
         public ?string   $shortcut = null,
         array            $argumentsForMe = [],
         public array     $arguments = [],
         public ?IBuilder $builder = null
     ) {
-        $this->namedArgumentsForMe = $this->_parseArguments($argumentsForMe);
-        $this->namedArguments = $this->_parseArguments($this->arguments);
+        $this->namedArgumentsForMe = $this->_parseNamedArguments($argumentsForMe);
+        $this->namedArguments = $this->_parseNamedArguments($this->arguments);
+        $this->positionalArguments = array_values(array_filter(
+            $this->arguments, fn(string $arg) => !preg_match(self::ARG_REGEX, $arg)
+        ));
     }
 
-    private function _parseArguments(array $args): array
+    private function _parseNamedArguments(array $args): array
     {
         $parsedArgs = [];
         foreach ($args as $arg) {
