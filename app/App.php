@@ -22,7 +22,7 @@ class App
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 2;
-    const VERSION_MINOR = 1;
+    const VERSION_MINOR = 2;
     const VERSION_PATCH = 0;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
