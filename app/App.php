@@ -23,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 2;
     const VERSION_MINOR = 2;
-    const VERSION_PATCH = 0;
+    const VERSION_PATCH = 1;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
     const APP_SHORTCUT_SETUP = 'install-global';
@@ -473,7 +473,16 @@ class App
                         'Missing required argument ' . InputDTO::ARG_PREFIX . $dtoArg->name
                     );
                 }
-                $values[$dtoArg->name] = $dtoArg->defaultValue;
+                $enumClass = $dtoArg->getEnumClass();
+                if ($enumClass !== null) {
+                    // enum defaults are stored as their scalar ->value, restore as
+                    // enum case
+                    $values[$dtoArg->name] = $dtoArg->defaultValue === null
+                        ? null
+                        : $enumClass::from($dtoArg->defaultValue);
+                } else {
+                    $values[$dtoArg->name] = $dtoArg->defaultValue;
+                }
             }
         }
 

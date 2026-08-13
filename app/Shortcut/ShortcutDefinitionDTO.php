@@ -52,17 +52,22 @@ class ShortcutDefinitionDTO
                     $dtoArg = new ArgDefinitionDTO('', ArgDefinitionDTO::TYPE_VARIADIC);
                 } elseif ($paramType = $param->getType()) {
                     $paramName = $param->getName();
-                    $typeName = $paramType->isBuiltin()
-                        ? $paramType->getName()
-                        : (
-                            (new \ReflectionClass($paramType->getName()))->isEnum()
-                            ? ArgDefinitionDTO::TYPE_ENUM
-                            : null
-                        );
+                    // union/intersection types have no isBuiltin(), only ReflectionNamedType does
+                    $typeName = $paramType instanceof \ReflectionNamedType
+                        ? (
+                            $paramType->isBuiltin()
+                                ? $paramType->getName()
+                                : (
+                                    (new \ReflectionClass($paramType->getName()))->isEnum()
+                                    ? ArgDefinitionDTO::TYPE_ENUM
+                                    : null
+                                )
+                        )
+                        : null;
                     if (!in_array($typeName, $supportedTypes, true)) {
                         throw new \Exception(
                             "Unsupported argument type for shortcut " .
-                            "{$this->name}({$paramType->getName()} \${$paramName}), " .
+                            "{$this->name}({$paramType} \${$paramName}), " .
                             "supported types: " .
                             "string (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
                             "enum (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
@@ -90,7 +95,7 @@ class ShortcutDefinitionDTO
                                 InputDTO::ARG_PREFIX . $paramName
                             ));
                         }
-                        if ($typeName === ArgDefinitionDTO::TYPE_ENUM) {
+                        if ($default instanceof \BackedEnum) {
                             $default = $default->value;
                         }
                         $dtoArg->setDefaultValue($default);
