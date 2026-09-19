@@ -42,7 +42,9 @@ class ShortcutDefinitionDTO
             $this->args = new ArgDefinitionsCollection();
 
             $params = $this->refMethod->getParameters();
-            $supportedTypes = ['string', 'bool', 'array', ArgDefinitionDTO::TYPE_ENUM];
+            $supportedTypes = [
+                'string', 'int', 'float', 'bool', 'array', ArgDefinitionDTO::TYPE_ENUM
+            ];
 
             $boolException = "Fix definition of %s argument, bool arguments " .
                 "must have default value FALSE, because it is used as optional flag";
@@ -70,6 +72,8 @@ class ShortcutDefinitionDTO
                             "{$this->name}({$paramType} \${$paramName}), " .
                             "supported types: " .
                             "string (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
+                            "int (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
+                            "float (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
                             "enum (" . InputDTO::ARG_PREFIX . "{$paramName}=<value>), " .
                             "bool (optional flag, " . InputDTO::ARG_PREFIX . "{$paramName}), " .
                             "array (" . InputDTO::ARG_PREFIX . "{$paramName}=<value1> " .
