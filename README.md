@@ -2,13 +2,13 @@
 
 Console tool to call sets of commands using short aliases.
 
-A distinctive feature is that it is configured entirely in **PHP**, which means
-accessibility of **code-completion**, finding of **usage**, using of your application **constants**, **validation** and actually brings
-the whole range of PHP possibilities and your IDE features.
+A distinctive feature is that it is configured entirely in **PHP**, which gives you
+**code-completion**, **find usages**, access to your application's **constants**,
+**validation**, and the whole range of PHP and IDE capabilities.
 
-The disadvantage of this is that the configuration is more verbose compared to YAML and
-other simple formats, but it is negligible compared to the benefits that the
-integration into the host application brings.
+The downside is that the configuration is more verbose compared to YAML and other
+simple formats, but that's negligible compared to the benefits of integrating with
+the host application.
 
 ## installation
 
@@ -20,22 +20,22 @@ integration into the host application brings.
 ### download
 
 download `short.phar` from https://github.com/allapps2/shortcuts/blob/main/bin/short.phar
-and put it into your project (for example to .for-auto-completion folder to be used
-by your IDE like PhpStorm for code auto-completion).
+and put it into your project (for example into the .for-auto-completion folder, to be
+used by your IDE, like PhpStorm, for code auto-completion).
 
 ### global install
 
-to make `sc` alias available everywhere:
+to make the `sc` alias available everywhere:
 
 `sudo php short.phar install-global`
 
-or as any custom alias:
+or with a custom alias:
 
 `sudo php short.phar install-global <myalias>`
 
 ## usage
 
-in folder with shortcuts.php:
+in a folder containing shortcuts.php:
 
 `sc [<shortcut> [<arguments>]]`
 
