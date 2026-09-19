@@ -1,6 +1,6 @@
 # shortcuts
 
-Console tool to call sets of commands using short aliases.
+Console tool to call sets of commands using short aliases - like a Makefile, but in PHP.
 
 A distinctive feature is that it is configured entirely in **PHP**, which gives you
 **code-completion**, **find usages**, access to your application's **constants**,
