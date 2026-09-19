@@ -23,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 2;
     const VERSION_MINOR = 2;
-    const VERSION_PATCH = 1;
+    const VERSION_PATCH = 3;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
     const APP_SHORTCUT_SETUP = 'install-global';
@@ -267,6 +267,8 @@ class App
                         $arg .= $descriptionSeparator . 'optional flag';
                         break;
                     case 'string':
+                    case 'int':
+                    case 'float':
                     case ArgDefinitionDTO::TYPE_ENUM:
                         if ($dtoArg->hasDefaultValue()) {
                             $arg .= $descriptionSeparator . 'optional';
@@ -404,7 +406,9 @@ class App
      * their name is omitted; bool (flags) and array (repeatable --name=value) are
      * ambiguous as bare positional tokens, so they always require --name
      */
-    const POSITIONALLY_FILLABLE_TYPES = ['string', ArgDefinitionDTO::TYPE_ENUM];
+    const POSITIONALLY_FILLABLE_TYPES = [
+        'string', 'int', 'float', ArgDefinitionDTO::TYPE_ENUM
+    ];
 
     private function _populateArgsWithValues(
         ShortcutDefinitionDTO $dtoShortcut, InputDTO $dtoInput
@@ -434,6 +438,11 @@ class App
                     if ($type !== $dtoArg->type) {
                         if ($dtoArg->type === 'array' && $type === 'string') {
                             $value = [$value];
+                        } elseif (
+                            in_array($dtoArg->type, ['int', 'float'], true) &&
+                            $type === 'string'
+                        ) {
+                            $value = $this->_castNumericValue($dtoArg, $value);
                         } elseif ($type === 'bool') { // argument was specified, but as flag, without value
                             throw new UserFriendlyException(
                                 sprintf(self::MSG_MISSING_VALUE, $dtoArg->name)
@@ -464,9 +473,13 @@ class App
                 in_array($dtoArg->type, self::POSITIONALLY_FILLABLE_TYPES, true)
             ) {
                 $value = array_shift($positionalQueue);
-                $values[$dtoArg->name] = $dtoArg->type === ArgDefinitionDTO::TYPE_ENUM
-                    ? $this->_resolveEnumValue($dtoArg, $value)
-                    : escapeshellarg($value);
+                if ($dtoArg->type === ArgDefinitionDTO::TYPE_ENUM) {
+                    $values[$dtoArg->name] = $this->_resolveEnumValue($dtoArg, $value);
+                } elseif (in_array($dtoArg->type, ['int', 'float'], true)) {
+                    $values[$dtoArg->name] = $this->_castNumericValue($dtoArg, $value);
+                } else {
+                    $values[$dtoArg->name] = escapeshellarg($value);
+                }
             } else {
                 if (!$dtoArg->hasDefaultValue()) {
                     throw new UserFriendlyException(
@@ -487,6 +500,23 @@ class App
         }
 
         return $values;
+    }
+
+    private function _castNumericValue(
+        ArgDefinitionDTO $dtoArg, string $value
+    ): int|float
+    {
+        $casted = $dtoArg->type === 'int' ? (int)$value : (float)$value;
+        if ((string)$casted !== $value) {
+            throw new UserFriendlyException(sprintf(
+                'Invalid %s value "%s", expected a valid %s',
+                InputDTO::ARG_PREFIX . $dtoArg->name,
+                $value,
+                $dtoArg->type
+            ));
+        }
+
+        return $casted;
     }
 
     private function _resolveEnumValue(
