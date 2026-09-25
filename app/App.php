@@ -10,20 +10,22 @@ use Shortcuts\ShortcutArg\ArgDefinitionDTO;
 class App
 {
     /**
-     * mainly for internal use, to identify the app.
+     * Primarily for internal use to identify the application.
      * NEVER CHANGE THIS VALUE!
      */
-    const CODENAME = 'shortcuts';
+    const NEVER_CHANGED_PROJECT_CODE = 'shortcuts';
 
     /**
-     * publicly used value, in opposite to @see self::CODENAME this one can be changed
-     * if needed (for example to solve conflicts with trademarks)
+     * Publicly visible identifier.
+     *
+     * Unlike {@see self::NEVER_CHANGED_PROJECT_CODE}, this value may be changed if
+     * necessary (for example, to resolve trademark conflicts).
      */
     const NAME = 'shortcuts';
 
     const VERSION_MAJOR = 3;
     const VERSION_MINOR = 0;
-    const VERSION_PATCH = 0;
+    const VERSION_PATCH = 1;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
     const APP_SHORTCUT_SETUP = 'install-global';
