@@ -13,6 +13,7 @@ class ArgDefinitionDTO
     public readonly string $description;
     private bool $hasDefaultValue = false;
     private string $enumClass;
+    private bool $isEscapeRequired = true;
 
     function __construct(readonly public string $name, readonly public string $type)
     {
@@ -38,6 +39,16 @@ class ArgDefinitionDTO
     function setDescription(string $description): void
     {
         $this->description = $description;
+    }
+
+    function disableEscaping(): void
+    {
+        $this->isEscapeRequired = false;
+    }
+
+    function isEscapeRequired(): bool
+    {
+        return $this->isEscapeRequired;
     }
 
     /**

@@ -125,6 +125,9 @@ class ShortcutDefinitionDTO
                     /** @var ShortcutArg $attrDef */
                     $attrDef = $attrs[0]->newInstance();
                     $dtoArg->setDescription($attrDef->description);
+                    if ($attrDef->escape === false) {
+                        $dtoArg->disableEscaping();
+                    }
                 }
 
                 $this->args->add($dtoArg);

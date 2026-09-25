@@ -23,7 +23,7 @@ class App
 
     const VERSION_MAJOR = 2;
     const VERSION_MINOR = 2;
-    const VERSION_PATCH = 3;
+    const VERSION_PATCH = 4;
 
     const APP_SHORTCUT_PHAR = 'compile-phar';
     const APP_SHORTCUT_SETUP = 'install-global';
@@ -459,11 +459,13 @@ class App
 
                     // the value is usually used for inserting into console command,
                     // so we need to make it safe for such usage
-                    if ($dtoArg->type === 'string') {
-                        $value = escapeshellarg($value);
-                    } elseif($dtoArg->type === 'array') {
-                        foreach ($value as &$item) {
-                            $item = escapeshellarg($item);
+                    if ($dtoArg->isEscapeRequired()) {
+                        if ($dtoArg->type === 'string') {
+                            $value = escapeshellarg($value);
+                        } elseif ($dtoArg->type === 'array') {
+                            foreach ($value as &$item) {
+                                $item = escapeshellarg($item);
+                            }
                         }
                     }
                 }
@@ -478,7 +480,9 @@ class App
                 } elseif (in_array($dtoArg->type, ['int', 'float'], true)) {
                     $values[$dtoArg->name] = $this->_castNumericValue($dtoArg, $value);
                 } else {
-                    $values[$dtoArg->name] = escapeshellarg($value);
+                    $values[$dtoArg->name] = $dtoArg->isEscapeRequired()
+                        ? escapeshellarg($value)
+                        : $value;
                 }
             } else {
                 if (!$dtoArg->hasDefaultValue()) {
