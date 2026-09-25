@@ -13,7 +13,7 @@ abstract class ShortcutsCollection
 {
     private ShortcutDefinitionCollection $availableShortcuts;
 
-    function _onShortcutDefinitionCreate(ShortcutDefinitionDTO $dtoShortcut): void {}
+    protected function onShortcutDefinitionCreate(ShortcutDefinitionDTO $dtoShortcut): void {}
 
     function getAvailableShortcuts(): ShortcutDefinitionCollection
     {
@@ -55,7 +55,7 @@ abstract class ShortcutsCollection
                     $attrDef = $attrs[0]->newInstance();
                     $dtoShortcut->setDescription($attrDef->description);
                 }
-                $this->_onShortcutDefinitionCreate($dtoShortcut);
+                $this->onShortcutDefinitionCreate($dtoShortcut);
                 $this->availableShortcuts->add($dtoShortcut);
             }
 
